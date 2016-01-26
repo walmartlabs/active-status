@@ -11,11 +11,11 @@
       (when (= i 0)
         (>! ch (str name " - started")))
       (<! (timeout speed))
-      (>! ch (str name " - update " i)))))
+      (>! ch (str name " - update " (inc i) "/" count)))))
 
 (defn demo []
   (let [t (status-tracker)]
-    (job (add-job t) "one" 1000 200)
+    (job (add-job t) "one" 1000 5)
     (job (add-job t) "two" 500 100)
     (job (add-job t) "three" 250 200)
     (Thread/sleep 5000)

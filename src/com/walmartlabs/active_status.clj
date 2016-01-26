@@ -3,6 +3,10 @@
             [medley.core :as medley]
             [io.aviso.ansi :as ansi]))
 
+(defn- time [] (System/currentTimeMillis))
+
+(def ^:private dim-after-millis 1000)
+
 (defn- increment-line
   [job]
   (update job :line inc))
@@ -12,30 +16,36 @@
   (println)                                                 ; Add a new line for the new job
   (as-> jobs %
         (medley/map-vals increment-line %)
-        (assoc % job-ch {:line 1})))
+        (assoc % job-ch {:line    1
+                         :updated (time)})))
 
 (defn- update-jobs-status
   [jobs job-ch value]
   ;; A nil indicates that the channel closed, but we still keep the final
   ;; status message for the job around. For now, we also have a leak:
-  ;; we keep a reference to the close channel forever.
+  ;; we keep a reference to the closed channel forever.
   (if value
-    (assoc-in jobs [job-ch :status] value)
+    (update jobs job-ch
+            assoc :status value
+            :updated (time))
     jobs))
 
 (defn- output-jobs
   [jobs]
-  #_ (println (vals jobs))
-  (doseq [{:keys [line status]} (vals jobs)]
-    (print (str ansi/csi "s"                                ; save cursor position
-                ansi/csi line "A"                           ; cursor up
-                ansi/csi "1G"                               ; cursor horizontal absolute
-                ansi/csi "K"                                ; clear to end-of-line
-                ; TODO: font changes based on age of status message
-                status
-                ansi/csi "u"                                ; restore cursor position
-                ))
-    (flush)))
+  (let [now (time)]
+    (doseq [{:keys [line status updated]} (vals jobs)]
+      (print (str ansi/csi "s"                              ; save cursor position
+                  ansi/csi line "A"                         ; cursor up
+                  ansi/csi "1G"                             ; cursor horizontal absolute
+                  ansi/csi "K"                              ; clear to end-of-line
+                  (if (>= (- now updated) dim-after-millis)
+                    ansi/white-font
+                    ansi/bold-white-font)
+                  status
+                  ansi/reset-font
+                  ansi/csi "u"                              ; restore cursor position
+                  ))
+      (flush))))
 
 (defn- start-process
   [new-jobs-ch]
