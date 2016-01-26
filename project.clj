@@ -7,6 +7,7 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.2.374"]
                  [medley "0.7.0"]
+                 [io.aviso/toolchest "0.1.3"]
                  [io.aviso/pretty "0.1.21"]]
 
   :aliases {"release" ["do"

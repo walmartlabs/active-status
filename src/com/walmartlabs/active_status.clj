@@ -1,37 +1,44 @@
 (ns com.walmartlabs.active-status
-  (:require [clojure.core.async :refer [chan close! dropping-buffer go-loop put! alts!]]
+  (:require [clojure.core.async :refer [chan close! dropping-buffer go-loop put! alt! pipeline]]
+            [io.aviso.toolchest.macros :refer [cond-let]]
             [medley.core :as medley]
             [io.aviso.ansi :as ansi]))
 
-(defn- time [] (System/currentTimeMillis))
+(defn- millis [] (System/currentTimeMillis))
 
 (defn- increment-line
   [job]
   (update job :line inc))
 
 (defn- setup-new-job
-  [jobs job-ch]
+  [jobs composite-ch job-ch]
   (println)                                                 ; Add a new line for the new job
+  ;; Convert each value into a tuple of job-ch and update value, and push that
+  ;; value into the composite channel.
+  (pipeline 1 composite-ch
+            (map #(vector job-ch %))
+            job-ch
+            false)
   (as-> jobs %
         (medley/map-vals increment-line %)
         (assoc % job-ch {:line    1
-                         :updated (time)})))
+                         :updated (millis)})))
 
 (defn- update-jobs-status
   [jobs job-ch value]
   ;; A nil indicates that the channel closed, but we still keep the final
   ;; status message for the job around. For now, we also have a leak:
-  ;; we keep a reference to the closed channel (until the tracker itself
+  ;; we keep a reference to the closed channel (until th(e tracker itself
   ;; is shutdown).
   (if value
     (update jobs job-ch
             assoc :status value
-            :updated (time))
+            :updated (millis))
     jobs))
 
 (defn- output-jobs
   [dim-after-millis jobs]
-  (let [now (time)]
+  (let [now (millis)]
     (doseq [{:keys [line status updated]} (vals jobs)]
       (print (str ansi/csi "s"                              ; save cursor position
                   ansi/csi line "A"                         ; cursor up
@@ -49,22 +56,18 @@
 (defn- start-process
   [new-jobs-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
-  (let [{:keys [dim-after-millis]} configuration]
+  (let [{:keys [dim-after-millis]} configuration
+        composite-ch (chan 1)]
     (go-loop [jobs {}]
-      (let [ports (into [new-jobs-ch] (keys jobs))
-            [v ch] (alts! ports)]
-        (cond
-          (and (nil? v) (= ch new-jobs-ch))
-          nil                                               ; shutdown
+      (alt!
+        new-jobs-ch ([v]
+                      (when v
+                        (recur (setup-new-job jobs composite-ch v))))
 
-          (= ch new-jobs-ch)
-          (recur (setup-new-job jobs v))
-
-          :else
-          (do
-            (let [jobs' (update-jobs-status jobs ch v)]
-              (output-jobs dim-after-millis jobs')
-              (recur jobs'))))))))
+        composite-ch ([[job-ch value]]
+                       (let [jobs' (update-jobs-status jobs job-ch value)]
+                         (output-jobs dim-after-millis jobs')
+                         (recur jobs')))))))
 
 (def default-configuration
   "The configuration used (by default) for a status tracker.
