@@ -62,9 +62,10 @@
 
   The tracker runs as a core.async process; a channel is returned.
 
-  Close the channel to shut down the status tracker.
+  Close the returned channel to shut down the status tracker immediately.
 
-  Otherwise, the returned channel is used when adding jobs to the tracker."
+  Otherwise, the returned channel is used when adding jobs to the tracker via
+  [[add-job]]."
   []
   (let [ch (chan 1)]
     (start-process ch)
