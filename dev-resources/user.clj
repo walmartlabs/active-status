@@ -20,7 +20,7 @@
     (job (add-job t) "three" 250 200)
     (Thread/sleep 5000)
     (job (add-job t) "four" 1000 10)
-    (job (add-job t) "five" 500 30)
+    (job (add-job t) "five" 2000 30)
     (Thread/sleep 5000)
     (job (add-job t) "six" 1000 10)
     (job (add-job t) "seven" 500 30)
