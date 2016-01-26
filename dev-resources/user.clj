@@ -14,7 +14,7 @@
       (>! ch (str name " - update " (inc i) "/" count)))))
 
 (defn demo []
-  (let [t (status-tracker)]
+  (let [t (status-tracker {:dim-after-millis 200})]
     (job (add-job t) "one" 1000 5)
     (job (add-job t) "two" 500 100)
     (job (add-job t) "three" 250 200)

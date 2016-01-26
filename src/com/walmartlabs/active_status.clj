@@ -5,8 +5,6 @@
 
 (defn- time [] (System/currentTimeMillis))
 
-(def ^:private dim-after-millis 1000)
-
 (defn- increment-line
   [job]
   (update job :line inc))
@@ -23,7 +21,8 @@
   [jobs job-ch value]
   ;; A nil indicates that the channel closed, but we still keep the final
   ;; status message for the job around. For now, we also have a leak:
-  ;; we keep a reference to the closed channel forever.
+  ;; we keep a reference to the closed channel (until the tracker itself
+  ;; is shutdown).
   (if value
     (update jobs job-ch
             assoc :status value
@@ -31,7 +30,7 @@
     jobs))
 
 (defn- output-jobs
-  [jobs]
+  [dim-after-millis jobs]
   (let [now (time)]
     (doseq [{:keys [line status updated]} (vals jobs)]
       (print (str ansi/csi "s"                              ; save cursor position
@@ -48,23 +47,31 @@
       (flush))))
 
 (defn- start-process
-  [new-jobs-ch]
+  [new-jobs-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
-  (go-loop [jobs {}]
-    (let [ports (into [new-jobs-ch] (keys jobs))
-          [v ch] (alts! ports)]
-      (cond
-        (and (nil? v) (= ch new-jobs-ch))
-        nil                                                 ; shutdown
+  (let [{:keys [dim-after-millis]} configuration]
+    (go-loop [jobs {}]
+      (let [ports (into [new-jobs-ch] (keys jobs))
+            [v ch] (alts! ports)]
+        (cond
+          (and (nil? v) (= ch new-jobs-ch))
+          nil                                               ; shutdown
 
-        (= ch new-jobs-ch)
-        (recur (setup-new-job jobs v))
+          (= ch new-jobs-ch)
+          (recur (setup-new-job jobs v))
 
-        :else
-        (do
-          (let [jobs' (update-jobs-status jobs ch v)]
-            (output-jobs jobs')
-            (recur jobs')))))))
+          :else
+          (do
+            (let [jobs' (update-jobs-status jobs ch v)]
+              (output-jobs dim-after-millis jobs')
+              (recur jobs'))))))))
+
+(def default-configuration
+  "The configuration used (by default) for a status tracker.
+
+  :dim-after-millis
+  : Milliseconds after which the status dims from bold to normal; defaults to 1000 ms."
+  {:dim-after-millis 1000})
 
 (defn status-tracker
   "Creates a new status tracker ... you should only have one of these at a time
@@ -75,14 +82,23 @@
   Close the returned channel to shut down the status tracker immediately.
 
   Otherwise, the returned channel is used when adding jobs to the tracker via
-  [[add-job]]."
-  []
-  (let [ch (chan 1)]
-    (start-process ch)
-    ch))
+  [[add-job]].
+
+  configuration
+  : The configuration to use for the tracker, defaulting to [[default-configuration]]."
+  ([]
+   (status-tracker default-configuration))
+  ([configuration]
+   (let [ch (chan 1)]
+     (start-process ch configuration)
+     ch)))
 
 (defn add-job
-  "Adds a new job, returning a channel for updates to the job."
+  "Adds a new job, returning a channel for updates to the job.
+
+  You may push updates into the job, or close it (to terminate the job).
+
+  A terminated job will stay visible"
   [tracker-ch]
   (let [ch (chan (dropping-buffer 1))]
     (put! tracker-ch ch)
