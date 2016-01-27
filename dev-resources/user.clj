@@ -34,7 +34,7 @@
     (Thread/sleep 3000)
     (>!! j "adding six, seven")
     (job (add-job t) "six" 1000 10 :error)
-    (job (add-job t) "seven" 10 30)
+    (job (add-job t) "seven" 10 10000)
     (>!! j "final (long) sleep")
     (Thread/sleep 5000)
     (>!! j "shutting down!")
