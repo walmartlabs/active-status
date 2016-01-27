@@ -1,4 +1,5 @@
 (ns com.walmartlabs.active-status
+  "Manage asynchronous status of multiple concurrent jobs within a command-line application."
   (:require [clojure.core.async :refer [chan close! dropping-buffer go-loop put! alt! pipeline go <! >! timeout]]
             [io.aviso.toolchest.macros :refer [cond-let]]
             [medley.core :as medley]
@@ -11,7 +12,7 @@
   "A protocol that indicates how a particular job is updated by a particular type."
   (update-job [this job]))
 
-;; Capture the job-updated time for a job and, if not changed at a later date,
+;; Capture the updated time for a job and, if not changed at a later date,
 ;; clear it's active flag.
 (defrecord DimAfterDelay [job-updated]
 
@@ -29,9 +30,20 @@
 
   String
   (update-job [this job]
-    (assoc job :status this
-               :updated (millis)
-               :active true)))
+    (assoc job :active true
+               :summary this)))
+
+(def ^:private status-to-ansi
+  {:warning ansi/yellow-font
+   :normal  nil
+   :error   ansi/red-font
+   :success ansi/green-font})
+
+(defrecord ChangeStatus [new-status]
+  JobUpdater
+  (update-job [_ job]
+    (assoc job :active true
+               :status new-status)))
 
 (defn- increment-line
   [job]
@@ -39,11 +51,13 @@
 
 (defn- apply-dim
   [job dim-after-millis]
-  (let [{:keys [active updated channel]} job]
-    (when active
+  (if (:active job)
+    (let [updated (millis)
+          job-ch (:channel job)]
       (go
         (<! (timeout dim-after-millis))
-        (>! channel (->DimAfterDelay updated))))
+        (>! job-ch (->DimAfterDelay updated)))
+      (assoc job :updated updated))
     job))
 
 (defn- setup-new-job
@@ -59,8 +73,7 @@
         (medley/map-vals increment-line %)
         (assoc % job-ch (-> {:line    1
                              :active  true
-                             :channel job-ch
-                             :updated (millis)}
+                             :channel job-ch}
                             (apply-dim dim-after-millis)))))
 
 (defn- update-jobs-status
@@ -76,15 +89,15 @@
 
 (defn- output-jobs
   [jobs]
-  (doseq [{:keys [line status active]} (vals jobs)]
+  (doseq [{:keys [line summary active status]} (vals jobs)]
     (print (str ansi/csi "s"                                ; save cursor position
                 ansi/csi line "A"                           ; cursor up
                 ansi/csi "1G"                               ; cursor horizontal absolute
                 ansi/csi "K"                                ; clear to end-of-line
-                (if active
-                  ansi/bold-white-font
-                  ansi/white-font)
-                status
+                (when active
+                  ansi/bold-font)
+                (status-to-ansi status)
+                summary                                     ; Primary text for the job
                 ansi/reset-font
                 ansi/csi "u"                                ; restore cursor position
                 ))
@@ -136,7 +149,12 @@
 (defn add-job
   "Adds a new job, returning a channel for updates to the job.
 
-  You may push updates into the job, or close it (to terminate the job).
+  You may push updates into the job's channel, or close the channel, to terminate the job.
+
+  The primary job update is just a String, which changes the summary text for the job.
+
+  When a job is changed in any way, it will briefly be highlighted (in bold font).
+  If not updated for a set period of time (by default, 1 second) it will then dim (normal font).
 
   A terminated job will stay visible"
   [tracker-ch]
@@ -144,4 +162,13 @@
     (put! tracker-ch ch)
     ch))
 
+(defn change-status
+  "Returns a job update value that changes the status of the job (this does not affect
+  its summary message or other properties).
 
+  The status of a job will affect the overall color of the job's line.
+
+  value
+  : One of: :normal (the default), :success, :warning, :error."
+  [value]
+  (->ChangeStatus value))
