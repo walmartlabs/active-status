@@ -1,6 +1,6 @@
 (ns com.walmartlabs.active-status
   "Manage asynchronous status of multiple concurrent jobs within a command-line application."
-  (:require [clojure.core.async :refer [chan close! dropping-buffer go-loop put! alt! pipeline go <! >! timeout]]
+  (:require [clojure.core.async :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout]]
             [io.aviso.toolchest.macros :refer [cond-let]]
             [medley.core :as medley]
             [io.aviso.ansi :as ansi]))
@@ -171,7 +171,7 @@
 
   A terminated job will stay visible"
   [tracker-ch]
-  (let [ch (chan (dropping-buffer 2))]
+  (let [ch (chan (sliding-buffer 2))]
     (put! tracker-ch ch)
     ch))
 
