@@ -72,10 +72,10 @@
   (println)                                                 ; Add a new line for the new job
   ;; Convert each value into a tuple of job-ch and update value, and push that
   ;; value into the composite channel.
-  (pipeline 1 composite-ch
-            (map #(vector job-ch %))
-            job-ch
-            false)
+  (go-loop []
+    (when-let [v (<! job-ch)]
+      (>! composite-ch [job-ch v])
+      (recur)))
   (as-> jobs %
         (medley/map-vals increment-line %)
         (assoc % job-ch (-> {:line    1
@@ -87,17 +87,17 @@
   [jobs job-ch value dim-after-millis]
   ;; A nil indicates that the channel closed, but we still keep the final
   ;; status message for the job around. For now, we also have a leak:
-  ;; we keep a reference to the closed channel (until th(e tracker itself
+  ;; we keep a reference to the closed channel (until the tracker itself
   ;; is shutdown).
   (update jobs job-ch
           (fn [job]
             (-> (update-job value job)
                 (apply-dim dim-after-millis)))))
 
-(defn- output-jobs
+(defn- refresh-output
   [old-jobs new-jobs]
   (doseq [[job-ch job] new-jobs
-          :when (not (= job (get old-jobs job-ch)))
+          :when (not= job (get old-jobs job-ch))
           :let [{:keys [line summary active status]} job]]
     (print (str ansi/csi "s"                                ; save cursor position
                 ansi/csi line "A"                           ; cursor up
@@ -120,12 +120,16 @@
     (go-loop [jobs {}]
       (alt!
         new-jobs-ch ([v]
-                      (when v
-                        (recur (setup-new-job jobs composite-ch v dim-after-millis))))
+                      (if (some? v)
+                        (recur (setup-new-job jobs composite-ch v dim-after-millis))
+                        ;; Finalize the output and exit the go loop:
+                        (let [jobs' (medley/map-vals #(assoc % :active false)
+                                                     jobs)]
+                          (refresh-output jobs jobs'))))
 
         composite-ch ([[job-ch value]]
                        (let [jobs' (update-jobs-status jobs job-ch value dim-after-millis)]
-                         (output-jobs jobs jobs')
+                         (refresh-output jobs jobs')
                          (recur jobs')))))))
 
 (def default-configuration
