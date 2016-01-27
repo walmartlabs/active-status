@@ -125,15 +125,14 @@
 
 (defn- update-jobs-status
   [jobs job-ch value dim-after-millis]
-  ;; A nil indicates that the channel closed, but we still keep the final
-  ;; status message for the job around. For now, we also have a leak:
-  ;; we keep a reference to the closed channel (until the tracker itself
-  ;; is shutdown).
+  ;; A nil indicates that the channel closed, so complete the job.
   (if (some? value)
-    (update jobs job-ch
-            (fn [job]
-              (-> (update-job value job)
-                  (apply-dim dim-after-millis))))
+    (let [jobs' (update jobs job-ch
+                        (fn [job]
+                          (-> (update-job value job)
+                              (apply-dim dim-after-millis))))]
+      (refresh-output jobs jobs')
+      jobs')
     (complete-job jobs job-ch)))
 
 (defn- start-process
@@ -152,9 +151,7 @@
                           (refresh-output jobs jobs'))))
 
         composite-ch ([[job-ch value]]
-                       (let [jobs' (update-jobs-status jobs job-ch value dim-after-millis)]
-                         (refresh-output jobs jobs')
-                         (recur jobs')))))))
+                       (recur (update-jobs-status jobs job-ch value dim-after-millis)))))))
 
 (def default-configuration
   "The configuration used (by default) for a status tracker.
