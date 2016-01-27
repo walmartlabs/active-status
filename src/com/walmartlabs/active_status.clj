@@ -1,17 +1,53 @@
 (ns com.walmartlabs.active-status
-  (:require [clojure.core.async :refer [chan close! dropping-buffer go-loop put! alt! pipeline]]
+  (:require [clojure.core.async :refer [chan close! dropping-buffer go-loop put! alt! pipeline go <! >! timeout]]
             [io.aviso.toolchest.macros :refer [cond-let]]
             [medley.core :as medley]
             [io.aviso.ansi :as ansi]))
 
 (defn- millis [] (System/currentTimeMillis))
 
+
+(defprotocol JobUpdater
+  "A protocol that indicates how a particular job is updated by a particular type."
+  (update-job [this job]))
+
+;; Capture the job-updated time for a job and, if not changed at a later date,
+;; clear it's active flag.
+(defrecord DimAfterDelay [job-updated]
+
+  JobUpdater
+  (update-job [_ job]
+    (if (= job-updated (:updated job))
+      (assoc job :active false)
+      job)))
+
+(extend-protocol JobUpdater
+
+  nil
+  (update-job [_ job]
+    (assoc job :active false))
+
+  String
+  (update-job [this job]
+    (assoc job :status this
+               :updated (millis)
+               :active true)))
+
 (defn- increment-line
   [job]
   (update job :line inc))
 
+(defn- apply-dim
+  [job dim-after-millis]
+  (let [{:keys [active updated channel]} job]
+    (when active
+      (go
+        (<! (timeout dim-after-millis))
+        (>! channel (->DimAfterDelay updated))))
+    job))
+
 (defn- setup-new-job
-  [jobs composite-ch job-ch]
+  [jobs composite-ch job-ch dim-after-millis]
   (println)                                                 ; Add a new line for the new job
   ;; Convert each value into a tuple of job-ch and update value, and push that
   ;; value into the composite channel.
@@ -21,37 +57,38 @@
             false)
   (as-> jobs %
         (medley/map-vals increment-line %)
-        (assoc % job-ch {:line    1
-                         :updated (millis)})))
+        (assoc % job-ch (-> {:line    1
+                             :active  true
+                             :channel job-ch
+                             :updated (millis)}
+                            (apply-dim dim-after-millis)))))
 
 (defn- update-jobs-status
-  [jobs job-ch value]
+  [jobs job-ch value dim-after-millis]
   ;; A nil indicates that the channel closed, but we still keep the final
   ;; status message for the job around. For now, we also have a leak:
   ;; we keep a reference to the closed channel (until th(e tracker itself
   ;; is shutdown).
-  (if value
-    (update jobs job-ch
-            assoc :status value
-            :updated (millis))
-    jobs))
+  (update jobs job-ch
+          (fn [job]
+            (-> (update-job value job)
+                (apply-dim dim-after-millis)))))
 
 (defn- output-jobs
-  [dim-after-millis jobs]
-  (let [now (millis)]
-    (doseq [{:keys [line status updated]} (vals jobs)]
-      (print (str ansi/csi "s"                              ; save cursor position
-                  ansi/csi line "A"                         ; cursor up
-                  ansi/csi "1G"                             ; cursor horizontal absolute
-                  ansi/csi "K"                              ; clear to end-of-line
-                  (if (>= (- now updated) dim-after-millis)
-                    ansi/white-font
-                    ansi/bold-white-font)
-                  status
-                  ansi/reset-font
-                  ansi/csi "u"                              ; restore cursor position
-                  ))
-      (flush))))
+  [jobs]
+  (doseq [{:keys [line status active]} (vals jobs)]
+    (print (str ansi/csi "s"                                ; save cursor position
+                ansi/csi line "A"                           ; cursor up
+                ansi/csi "1G"                               ; cursor horizontal absolute
+                ansi/csi "K"                                ; clear to end-of-line
+                (if active
+                  ansi/bold-white-font
+                  ansi/white-font)
+                status
+                ansi/reset-font
+                ansi/csi "u"                                ; restore cursor position
+                ))
+    (flush)))
 
 (defn- start-process
   [new-jobs-ch configuration]
@@ -62,11 +99,11 @@
       (alt!
         new-jobs-ch ([v]
                       (when v
-                        (recur (setup-new-job jobs composite-ch v))))
+                        (recur (setup-new-job jobs composite-ch v dim-after-millis))))
 
         composite-ch ([[job-ch value]]
-                       (let [jobs' (update-jobs-status jobs job-ch value)]
-                         (output-jobs dim-after-millis jobs')
+                       (let [jobs' (update-jobs-status jobs job-ch value dim-after-millis)]
+                         (output-jobs jobs')
                          (recur jobs')))))))
 
 (def default-configuration
