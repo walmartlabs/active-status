@@ -1,7 +1,7 @@
 (ns user
   (:use com.walmartlabs.active-status
         clojure.repl)
-  (:require [clojure.core.async :refer [close! put! go go-loop timeout <! >!
+  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!!
                                         ]]))
 
 
@@ -19,17 +19,28 @@
        (>! ch (str name " - update " (inc i) "/" count))))))
 
 (defn demo []
-  (let [t (status-tracker {:dim-after-millis 200})]
+  (let [t (status-tracker #_ {:dim-after-millis 1000})
+        j (add-job t)]
+    (>!! j "adding one, two, three")
     (job (add-job t) "one" 1000 5)
     (job (add-job t) "two" 500 100 :warning)
     (job (add-job t) "three" 250 200)
-    (Thread/sleep 5000)
+    (>!! j "first sleep")
+    (Thread/sleep 3000)
+    (>!! j "adding four, five")
     (job (add-job t) "four" 1000 10 :success)
     (job (add-job t) "five" 2000 30)
-    (Thread/sleep 5000)
+    (>!! j "second sleep")
+    (Thread/sleep 3000)
+    (>!! j "adding six, seven")
     (job (add-job t) "six" 1000 10 :error)
     (job (add-job t) "seven" 500 30)
-    (Thread/sleep 10000)
-    (close! t)))
+    (>!! j "final (long) sleep")
+    (Thread/sleep 5000)
+    (>!! j "shutting down!")
+    (close! t)
+    ;; Without this sleep, the repl outputs a line saying "nil",
+    ;; which screws up the final output of the lines.
+    (Thread/sleep 100)))
 
 
