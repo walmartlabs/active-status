@@ -7,6 +7,13 @@
 
 (defn- millis [] (System/currentTimeMillis))
 
+;; The job model:
+;;
+;; :summary - text string to display
+;; :status - optional status (:normal, :warning, etc.), affects color
+;; :active - true if recently active (displayed bold), automatically cleared after a few ms
+;; :updated - millis of last update, used to determine when to clear :active
+;; :line - lines up from cursor for the job (changes when new jobs are added)
 
 (defprotocol JobUpdater
   "A protocol that indicates how a particular job is updated by a particular type."
@@ -88,8 +95,10 @@
                 (apply-dim dim-after-millis)))))
 
 (defn- output-jobs
-  [jobs]
-  (doseq [{:keys [line summary active status]} (vals jobs)]
+  [old-jobs new-jobs]
+  (doseq [[job-ch job] new-jobs
+          :when (not (= job (get old-jobs job-ch)))
+          :let [{:keys [line summary active status]} job]]
     (print (str ansi/csi "s"                                ; save cursor position
                 ansi/csi line "A"                           ; cursor up
                 ansi/csi "1G"                               ; cursor horizontal absolute
@@ -116,7 +125,7 @@
 
         composite-ch ([[job-ch value]]
                        (let [jobs' (update-jobs-status jobs job-ch value dim-after-millis)]
-                         (output-jobs jobs')
+                         (output-jobs jobs jobs')
                          (recur jobs')))))))
 
 (def default-configuration
