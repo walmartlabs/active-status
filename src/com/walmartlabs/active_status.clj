@@ -31,10 +31,6 @@
 
 (extend-protocol JobUpdater
 
-  nil
-  (update-job [_ job]
-    (assoc job :active false))
-
   String
   (update-job [this job]
     (assoc job :active true
@@ -73,25 +69,15 @@
   ;; Convert each value into a tuple of job-ch and update value, and push that
   ;; value into the composite channel.
   (go-loop []
-    (when-let [v (<! job-ch)]
+    (let [v (<! job-ch)]
       (>! composite-ch [job-ch v])
-      (recur)))
+      (when v
+        (recur))))
   (as-> jobs %
         (medley/map-vals increment-line %)
         (assoc % job-ch {:line    1
                          :active  true
                          :channel job-ch})))
-
-(defn- update-jobs-status
-  [jobs job-ch value dim-after-millis]
-  ;; A nil indicates that the channel closed, but we still keep the final
-  ;; status message for the job around. For now, we also have a leak:
-  ;; we keep a reference to the closed channel (until the tracker itself
-  ;; is shutdown).
-  (update jobs job-ch
-          (fn [job]
-            (-> (update-job value job)
-                (apply-dim dim-after-millis)))))
 
 (defn- refresh-output
   [old-jobs new-jobs]
@@ -110,6 +96,45 @@
                 ansi/csi "u"                                ; restore cursor position
                 ))
     (flush)))
+
+(defn- complete-job
+  "When a job completes, we want to clear its :active flag, but also bubble it up
+  in terms of lines, so that any non-completed job is lower on the screen.
+
+  We can then do a refresh, and finally, discard the completed job.
+
+  Returns the updated jobs, with the completed channel removed."
+  [jobs job-ch]
+  ; (println "complete-job" (-> (get jobs job-ch) (dissoc :channel)))
+  (let [completed-line (get-in jobs [job-ch :line])
+        ;; Any active lines between the completed job and the end of the list
+        ;; need to move down one.
+        fix-line (fn [j]
+                   (let [line (:line j)]
+                     (if (> line completed-line)
+                       (assoc j :line (dec line))
+                       j)))
+        jobs' (as-> jobs %
+                   (medley/map-vals fix-line %)
+                   (update % job-ch
+                              assoc :active false
+                              :line (count jobs)))]
+    (refresh-output jobs jobs')
+    ;; And now we no longer need the job (or its channel)
+    (dissoc jobs' job-ch)))
+
+(defn- update-jobs-status
+  [jobs job-ch value dim-after-millis]
+  ;; A nil indicates that the channel closed, but we still keep the final
+  ;; status message for the job around. For now, we also have a leak:
+  ;; we keep a reference to the closed channel (until the tracker itself
+  ;; is shutdown).
+  (if (some? value)
+    (update jobs job-ch
+            (fn [job]
+              (-> (update-job value job)
+                  (apply-dim dim-after-millis))))
+    (complete-job jobs job-ch)))
 
 (defn- start-process
   [new-jobs-ch configuration]

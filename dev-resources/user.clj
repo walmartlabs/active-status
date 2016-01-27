@@ -16,19 +16,21 @@
        (<! (timeout speed))
        (when (= i 5)
          (>! ch (change-status status)))
-       (>! ch (str name " - update " (inc i) "/" count))))))
+       (>! ch (str name " - update " (inc i) "/" count)))
+     (>! ch (str name " - completed " count))
+     (close! ch))))
 
 (defn demo []
-  (let [t (status-tracker #_ {:dim-after-millis 1000})
+  (let [t (status-tracker)
         j (add-job t)]
     (>!! j "adding one, two, three")
-    (job (add-job t) "one" 1000 5)
+    (job (add-job t) "one" 100 5)
     (job (add-job t) "two" 500 100 :warning)
-    (job (add-job t) "three" 250 200)
+    (job (add-job t) "three" 250 10)
     (>!! j "first sleep")
     (Thread/sleep 3000)
     (>!! j "adding four, five")
-    (job (add-job t) "four" 1000 10 :success)
+    (job (add-job t) "four" 250 10 :success)
     (job (add-job t) "five" 2000 30)
     (>!! j "second sleep")
     (Thread/sleep 3000)
@@ -44,3 +46,7 @@
     (Thread/sleep 100)))
 
 
+(defn reload []
+  (load-file "src/com/walmartlabs/active_status.clj")
+  (load-file "dev-resources/user.clj")
+  (println "Reloaded."))
