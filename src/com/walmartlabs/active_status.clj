@@ -171,7 +171,7 @@
 
   A terminated job will stay visible"
   [tracker-ch]
-  (let [ch (chan (dropping-buffer 1))]
+  (let [ch (chan (dropping-buffer 2))]
     (put! tracker-ch ch)
     ch))
 
