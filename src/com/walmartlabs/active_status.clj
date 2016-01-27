@@ -68,7 +68,7 @@
     job))
 
 (defn- setup-new-job
-  [jobs composite-ch job-ch dim-after-millis]
+  [jobs composite-ch job-ch]
   (println)                                                 ; Add a new line for the new job
   ;; Convert each value into a tuple of job-ch and update value, and push that
   ;; value into the composite channel.
@@ -78,10 +78,9 @@
       (recur)))
   (as-> jobs %
         (medley/map-vals increment-line %)
-        (assoc % job-ch (-> {:line    1
-                             :active  true
-                             :channel job-ch}
-                            (apply-dim dim-after-millis)))))
+        (assoc % job-ch {:line    1
+                         :active  true
+                         :channel job-ch})))
 
 (defn- update-jobs-status
   [jobs job-ch value dim-after-millis]
@@ -121,7 +120,7 @@
       (alt!
         new-jobs-ch ([v]
                       (if (some? v)
-                        (recur (setup-new-job jobs composite-ch v dim-after-millis))
+                        (recur (setup-new-job jobs composite-ch v))
                         ;; Finalize the output and exit the go loop:
                         (let [jobs' (medley/map-vals #(assoc % :active false)
                                                      jobs)]
