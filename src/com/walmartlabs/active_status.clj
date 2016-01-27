@@ -93,12 +93,12 @@
     (print (str ansi/csi "s"                                ; save cursor position
                 ansi/csi line "A"                           ; cursor up
                 ansi/csi "1G"                               ; cursor horizontal absolute
-                ansi/csi "K"                                ; clear to end-of-line
                 (when active
                   ansi/bold-font)
                 (status-to-ansi status)
                 summary                                     ; Primary text for the job
                 ansi/reset-font
+                ansi/csi "K"                                ; clear to end-of-line
                 ansi/csi "u"                                ; restore cursor position
                 ))
     (flush)))
