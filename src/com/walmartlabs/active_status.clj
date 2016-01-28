@@ -152,7 +152,7 @@
 
 (defn- tput*
   [args]
-  (let [terminal-type (or (System/getenv "TERM") "xterm-256color")
+  (let [terminal-type (or (System/getenv "TERM") "xterm")
         {:keys [exit out err]} (apply sh "tput" (str "-T" terminal-type) (mapv str args))]
     (if (= 0 exit)
       (transmute-out out)
@@ -301,7 +301,7 @@
 
   The console status board depends on the `tput` command to be present on the system path;
   it invokes it in a sub-shell to obtain terminal capabilities.  In addition, if the `TERM`
-  environment variable is not set, a default, `xterm-256color` is used."
+  environment variable is not set, a default, `xterm` is used."
   ([]
    (console-status-board default-console-configuration))
   ([configuration]
@@ -325,8 +325,8 @@
       (require '[com.walmartlabs.active-status :as as]
                '[clojure.core.async :refer [close! >!!]])
 
-      (defn process-files [tracker files]
-        (let [job-ch (as/add-job tracker)]
+      (defn process-files [board-ch files]
+        (let [job-ch (as/add-job board-ch)]
             (>!! job-ch (as/start-progress (count files)))
             (doseq [f files]
               (>!! job-ch (str \"Processing: \" f))
