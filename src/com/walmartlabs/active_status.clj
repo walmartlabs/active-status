@@ -3,6 +3,8 @@
   (:require [clojure.core.async :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout]]
             [io.aviso.toolchest.macros :refer [cond-let]]
             [medley.core :as medley]
+            [clojure.java.shell :refer [sh]]
+            [clojure.string :as str]
             [io.aviso.ansi :as ansi]))
 
 (defn- millis [] (System/currentTimeMillis))
@@ -141,26 +143,53 @@
                      current
                      target))))))
 
+(defn- transmute-out
+  ":out from sh can be byte[] or String."
+  [s]
+  (if (string? s)
+    s
+    (slurp s)))
+
+(defn- tput*
+  [args]
+  (let [terminal-type (or (System/getenv "TERM") "xterm-256color")
+        {:keys [exit out err]} (apply sh "tput" (str "-T" terminal-type) (mapv str args))]
+    (if (= 0 exit)
+      (transmute-out out)
+      (binding [*out* *err*]
+        (format "Unable to invoke tput %s: %s"
+                (str/join " " args)
+                err)
+        ""))))
+
+(def ^:private tput
+  "Invoke tput in a shell, capturing the result.  Memoized."
+  (memoize
+    (fn [& args]
+      (tput* args))))
+
 (defn- refresh-output
   [progress-column old-jobs new-jobs]
   (doseq [[job-ch job] new-jobs
           :when (not= job (get old-jobs job-ch))
           :let [{:keys [line summary active status updated progress]} job
                 ]]
-    (print (str ansi/csi "s"                                ; save cursor position
-                ansi/csi line "A"                           ; cursor up
-                ansi/csi "1G"                               ; cursor horizontal absolute
+    (print (str (tput "civis")                              ; make cursor invisible
+                (tput "sc")                                 ; save cursor position
+                (tput "UP" line)                            ; cursor up
+                (tput "hpa" 1)                              ; move to columns
                 (when active
                   ansi/bold-font)
                 (status-to-ansi status)
                 summary                                     ; Primary text for the job
-                ansi/csi "K"                                ; clear to end-of-line
+                (tput "ce")                                 ; clear to end-of-line
                 (when progress
-                  (str ansi/csi progress-column "G"
+                  (str (tput "hpa" progress-column)
                        " "
                        (format-progress updated progress)))
                 ansi/reset-font
-                ansi/csi "u"                                ; restore cursor position
+                (tput "rc")                                 ; restore cursor position
+                (tput "cvvis")                              ; make cursor visible
                 ))
     (flush)))
 
