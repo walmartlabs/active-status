@@ -29,7 +29,7 @@
 
 (defn demo []
   (let [t (console-status-board)
-        j (add-job t)]
+        j (add-job t {:status :success})]
     (>!! j "adding one, two, three")
     (job (add-job t) "one" 100 50)
     (job (add-job t) "two" 500 100 :warning true)

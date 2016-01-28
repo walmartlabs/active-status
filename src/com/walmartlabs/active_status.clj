@@ -340,10 +340,23 @@
   On a heavily loaded system, updates into the channel may be discarded (using a sliding buffer).
   This is preferable to having jobs block or park just to report their status.
 
-  A terminated job will stay visible, but is moved up above any non-terminated jobs."
-  ([tracker-ch]
-   (let [ch (chan (sliding-buffer 5))]
-     (put! tracker-ch {:channel ch})
+  A terminated job will stay visible, but is moved up above any non-terminated jobs.
+
+  board-ch
+  : The channel for the score board, as returned by [[console-status-board]].
+
+  options
+  : A map of additional options:
+
+  :status
+  : The initial status for the job."
+  ([board-ch]
+   (add-job board-ch nil))
+  ([board-ch options]
+   (let [{:keys [status]} options
+         ch (chan (sliding-buffer 5))]
+     (put! board-ch {:channel ch
+                     :status  status})
      ch)))
 
 (defn change-status
