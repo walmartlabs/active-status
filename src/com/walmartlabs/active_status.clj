@@ -172,8 +172,7 @@
   [progress-column old-jobs new-jobs]
   (doseq [[job-ch job] new-jobs
           :when (not= job (get old-jobs job-ch))
-          :let [{:keys [line summary active status updated progress]} job
-                ]]
+          :let [{:keys [line summary active status updated progress]} job]]
     (print (str (tput "civis")                              ; make cursor invisible
                 (tput "sc")                                 ; save cursor position
                 (tput "UP" line)                            ; cursor up
@@ -257,8 +256,8 @@
         composite-ch ([[job-ch value]]
                        (recur (update-jobs-status jobs job-ch value dim-after-millis refresh-output')))))))
 
-(def default-ansi-configuration
-  "The configuration used (by default) for a status tracker.
+(def default-console-configuration
+  "The configuration used (by default) for a console status board.
 
   :dim-after-millis
   : Milliseconds after which the status dims from bold to normal; defaults to 1000 ms.
@@ -269,12 +268,10 @@
   {:dim-after-millis 1000
    :progress-column  55})
 
-(defn ansi-status-board
+(defn console-status-board
   "Creates a new status board suitable for use in a command-line application;
-  The board is presented using ANSI escape codes (to control font and cursor
-  position).
 
-  Only a single ANSI status board should be active at any one time; they will
+  Only a single console status board should be active at any one time; they will
   interfere with each other.
 
   The status board presents the status of any number of jobs.
@@ -284,6 +281,9 @@
   Each job has a summary message,
   an optional status (:normal, :success, :warning, :error),
   and optional progress state.
+
+  The board is presented using text and updates in place, using terminal capability
+  strings (to, for example, position the cursor and clear line content).
 
   The presentation includes the summary message; the status controls
   the font (that is, the color) for the message.  If progress state
@@ -296,9 +296,14 @@
   Close the returned channel to shut down the status board immediately.
 
   configuration
-  : The configuration to use for the tracker, defaulting to [[default-configuration]]."
+  : The configuration to use for the tracker, defaulting to [[default-configuration]].
+
+
+  The console status board depends on the `tput` command to be present on the system path;
+  it invokes it in a sub-shell to obtain terminal capabilities.  In addition, if the `TERM`
+  environment variable is not set, a default, `xterm-256color` is used."
   ([]
-   (ansi-status-board default-ansi-configuration))
+   (console-status-board default-console-configuration))
   ([configuration]
    (let [ch (chan 1)]
      (start-process ch configuration)

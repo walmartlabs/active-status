@@ -28,7 +28,7 @@
      (close! ch))))
 
 (defn demo []
-  (let [t (ansi-status-board)
+  (let [t (console-status-board)
         j (add-job t)]
     (>!! j "adding one, two, three")
     (job (add-job t) "one" 100 50)
