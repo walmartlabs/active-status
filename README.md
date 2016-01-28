@@ -72,6 +72,11 @@ It currently renders quite well in [iTerm](https://www.iterm2.com/).
 
 In Terminal.app, the default terminfo is 'ansi'; the library works correctly only if this is changed to 'xterm' (or some variant).
 
+IntelliJ Terminal (IntelliJ 15, OS X) seems to work fine.
+
+Cursive REPL (Intellij 15, OS X) currently quite broken, alas.  But, then again, REPL oriented development and the
+status tracker are not a good mix (see the "other output" section above).
+
 ----
 
 com.walmartlabs/active-status is released under the terms of the Apache Software License 2.0.
