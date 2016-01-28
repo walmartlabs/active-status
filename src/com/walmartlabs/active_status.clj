@@ -103,20 +103,20 @@
     job))
 
 (defn- setup-new-job
-  [jobs composite-ch job-ch]
+  [jobs composite-ch job]
   (println)                                                 ; Add a new line for the new job
   ;; Convert each value into a tuple of job-ch and update value, and push that
   ;; value into the composite channel.
-  (go-loop []
-    (let [v (<! job-ch)]
-      (>! composite-ch [job-ch v])
-      (when v
-        (recur))))
-  (as-> jobs %
-        (medley/map-vals increment-line %)
-        (assoc % job-ch {:line    1
-                         :active  true
-                         :channel job-ch})))
+  (let [job-ch (:channel job)]
+    (go-loop []
+      (let [v (<! job-ch)]
+        (>! composite-ch [job-ch v])
+        (when v
+          (recur))))
+    (as-> jobs %
+          (medley/map-vals increment-line %)
+          (assoc % job-ch (assoc job :line 1
+                                     :active true)))))
 
 (def ^:private bar-length 30)
 (def ^:private bars (apply str (repeat bar-length "=")))
@@ -341,10 +341,10 @@
   This is preferable to having jobs block or park just to report their status.
 
   A terminated job will stay visible, but is moved up above any non-terminated jobs."
-  [tracker-ch]
-  (let [ch (chan (sliding-buffer 5))]
-    (put! tracker-ch ch)
-    ch))
+  ([tracker-ch]
+   (let [ch (chan (sliding-buffer 5))]
+     (put! tracker-ch {:channel ch})
+     ch)))
 
 (defn change-status
   "Returns a job update value that changes the status of the job (this does not affect
