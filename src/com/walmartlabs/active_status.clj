@@ -14,6 +14,13 @@
 ;; :active - true if recently active (displayed bold), automatically cleared after a few ms
 ;; :updated - millis of last update, used to determine when to clear :active
 ;; :line - lines up from cursor for the job (changes when new jobs are added)
+;; :progress - a progress model, if non-nil, progress will be displayed
+
+;; A progress model:
+;; :target - target value to reach
+;; :current - current value towards target
+;; :created - time when progress model first created
+
 
 (defprotocol JobUpdater
   "A protocol that indicates how a particular job is updated by a particular type."
@@ -28,6 +35,36 @@
     (if (= job-updated (:updated job))
       (assoc job :active false)
       job)))
+
+(defrecord StartProgress [target]
+  JobUpdater
+  (update-job [_ job]
+    (assoc job :active true
+               :progress {:current 0
+                          :target  target
+                          :created (millis)})))
+
+(defrecord ProgressTick [amount]
+
+  JobUpdater
+  (update-job [_ job]
+    (-> job
+        (assoc :active true)
+        (update-in [:progress :current] + amount))))
+
+(defrecord CompleteProgress []
+
+  JobUpdater
+  (update-job [_ job]
+    (-> job
+        (assoc :active true)
+        (assoc-in [:progress :current] (get-in job [:progress :target])))))
+
+(defrecord ClearProgress []
+
+  JobUpdater
+  (update-job [_ job]
+    (dissoc job :progress)))
 
 (extend-protocol JobUpdater
 
@@ -79,11 +116,37 @@
                          :active  true
                          :channel job-ch})))
 
+(def ^:private bar-length 30)
+(def ^:private bars (apply str (repeat bar-length "=")))
+(def ^:private spaces (apply str (repeat bar-length " ")))
+
+(defn- format-progress
+  [updated {:keys [current target created]}]
+  (let [displayable (and (pos? target) (pos? current))
+        completed-ratio (if displayable (/ current target) 0)
+        completed-length (int (* completed-ratio bar-length))]
+    (str "["
+         (subs bars 0 completed-length)
+         (subs spaces 0 (- bar-length completed-length))
+         "]"
+         (when displayable
+           (let [elapsed (- updated created)
+                 remaining-millis (- (/ elapsed completed-ratio) elapsed)
+                 seconds (mod (int (/ remaining-millis 1000)) 60)
+                 minutes (int (/ remaining-millis 60000))]
+             (format " ETA: %02d:%02d %3d%% %d/%d"
+                     minutes
+                     seconds
+                     (int (* 100 completed-ratio))
+                     current
+                     target))))))
+
 (defn- refresh-output
-  [old-jobs new-jobs]
+  [progress-column old-jobs new-jobs]
   (doseq [[job-ch job] new-jobs
           :when (not= job (get old-jobs job-ch))
-          :let [{:keys [line summary active status]} job]]
+          :let [{:keys [line summary active status updated progress]} job
+                ]]
     (print (str ansi/csi "s"                                ; save cursor position
                 ansi/csi line "A"                           ; cursor up
                 ansi/csi "1G"                               ; cursor horizontal absolute
@@ -91,8 +154,12 @@
                   ansi/bold-font)
                 (status-to-ansi status)
                 summary                                     ; Primary text for the job
-                ansi/reset-font
                 ansi/csi "K"                                ; clear to end-of-line
+                (when progress
+                  (str ansi/csi progress-column "G"
+                       " "
+                       (format-progress updated progress)))
+                ansi/reset-font
                 ansi/csi "u"                                ; restore cursor position
                 ))
     (flush)))
@@ -104,7 +171,7 @@
   We can then do a refresh, and finally, discard the completed job.
 
   Returns the updated jobs, with the completed channel removed."
-  [jobs job-ch]
+  [jobs job-ch refresh-output]
   ; (println "complete-job" (-> (get jobs job-ch) (dissoc :channel)))
   (let [completed-line (get-in jobs [job-ch :line])
         ;; Any active lines between the completed job and the end of the list
@@ -124,22 +191,30 @@
     (dissoc jobs' job-ch)))
 
 (defn- update-jobs-status
-  [jobs job-ch value dim-after-millis]
+  [jobs job-ch value dim-after-millis refresh-output]
   ;; A nil indicates that the channel closed, so complete the job.
-  (if (some? value)
-    (let [jobs' (update jobs job-ch
-                        (fn [job]
-                          (-> (update-job value job)
-                              (apply-dim dim-after-millis))))]
-      (refresh-output jobs jobs')
-      jobs')
-    (complete-job jobs job-ch)))
+  (try
+    (if (some? value)
+      (let [jobs' (update jobs job-ch
+                          (fn [job]
+                            (-> (update-job value job)
+                                (apply-dim dim-after-millis))))]
+        (refresh-output jobs jobs')
+        jobs')
+      (complete-job jobs job-ch refresh-output))
+    (catch Throwable t
+      (throw (ex-info "Failure updating job status."
+                      {:jobs         jobs
+                       :job-ch       job-ch
+                       :update-value value}
+                      t)))))
 
 (defn- start-process
   [new-jobs-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
-  (let [{:keys [dim-after-millis]} configuration
-        composite-ch (chan 1)]
+  (let [{:keys [dim-after-millis progress-column]} configuration
+        composite-ch (chan 1)
+        refresh-output' (partial refresh-output progress-column)]
     (go-loop [jobs {}]
       (alt!
         new-jobs-ch ([v]
@@ -148,17 +223,22 @@
                         ;; Finalize the output and exit the go loop:
                         (let [jobs' (medley/map-vals #(assoc % :active false)
                                                      jobs)]
-                          (refresh-output jobs jobs'))))
+                          (refresh-output' jobs jobs'))))
 
         composite-ch ([[job-ch value]]
-                       (recur (update-jobs-status jobs job-ch value dim-after-millis)))))))
+                       (recur (update-jobs-status jobs job-ch value dim-after-millis refresh-output')))))))
 
 (def default-configuration
   "The configuration used (by default) for a status tracker.
 
   :dim-after-millis
-  : Milliseconds after which the status dims from bold to normal; defaults to 1000 ms."
-  {:dim-after-millis 1000})
+  : Milliseconds after which the status dims from bold to normal; defaults to 1000 ms.
+
+  :progress-column
+  : Column in which to display progress (which may truncate the job's summary);
+    defaults to 45."
+  {:dim-after-millis 1000
+   :progress-column  55})
 
 (defn status-tracker
   "Creates a new status tracker ... you should only have one of these at a time
@@ -190,9 +270,9 @@
   When a job is changed in any way, it will briefly be highlighted (in bold font).
   If not updated for a set period of time (by default, 1 second) it will then dim (normal font).
 
-  A terminated job will stay visible"
+  A terminated job will stay visible, but is moved up above any non-terminated jobs."
   [tracker-ch]
-  (let [ch (chan (sliding-buffer 2))]
+  (let [ch (chan (sliding-buffer 5))]
     (put! tracker-ch ch)
     ch))
 
@@ -206,3 +286,28 @@
   : One of: :normal (the default), :success, :warning, :error."
   [value]
   (->ChangeStatus value))
+
+(defn start-progress
+  "Returns a job update value that start progress torwards the indicated total."
+  [target]
+  (->StartProgress target))
+
+(defn progress-tick
+  "Returns an update value for a job to increment its progress. The default amount is 1."
+  ([] (progress-tick 1))
+  ([amount]
+   (->ProgressTick amount)))
+
+(defn complete-progress
+  "Returns an update value for a job to complete its progress (setting its current
+  amount to its target amount).
+
+  This is especially useful given that, on a loaded system, the occasional job update
+  value may be discarded."
+  []
+  (->CompleteProgress))
+
+(defn clear-progress
+  "Returns an update value for a job to clear the progress entirely, removing the progress bar."
+  []
+  (->ClearProgress))
