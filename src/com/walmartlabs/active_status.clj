@@ -228,7 +228,7 @@
         composite-ch ([[job-ch value]]
                        (recur (update-jobs-status jobs job-ch value dim-after-millis refresh-output')))))))
 
-(def default-configuration
+(def default-ansi-configuration
   "The configuration used (by default) for a status tracker.
 
   :dim-after-millis
@@ -240,21 +240,36 @@
   {:dim-after-millis 1000
    :progress-column  55})
 
-(defn status-tracker
-  "Creates a new status tracker ... you should only have one of these at a time
-  (or they will interfere with each other).
+(defn ansi-status-board
+  "Creates a new status board suitable for use in a command-line application;
+  The board is presented using ANSI escape codes (to control font and cursor
+  position).
 
-  The tracker runs as a core.async process; a channel is returned.
+  Only a single ANSI status board should be active at any one time; they will
+  interfere with each other.
 
-  Close the returned channel to shut down the status tracker immediately.
+  The status board presents the status of any number of jobs.
+  In this implementation, each job has a line in the status board, and
+  can be updated asynchronously.
 
-  Otherwise, the returned channel is used when adding jobs to the tracker via
-  [[add-job]].
+  Each job has a summary message,
+  an optional status (:normal, :success, :warning, :error),
+  and optional progress state.
+
+  The presentation includes the summary message; the status controls
+  the font (that is, the color) for the message.  If progress state
+  exists, then a progress bar is included for the job.
+
+  The status board runs as a core.async process.
+
+  This function returns a channel; the channel can be passed to [[add-job]].
+
+  Close the returned channel to shut down the status board immediately.
 
   configuration
   : The configuration to use for the tracker, defaulting to [[default-configuration]]."
   ([]
-   (status-tracker default-configuration))
+   (ansi-status-board default-ansi-configuration))
   ([configuration]
    (let [ch (chan 1)]
      (start-process ch configuration)
@@ -273,17 +288,23 @@
 
   Example:
 
+      (require '[com.walmartlabs.active-status :as as]
+               '[clojure.core.async :refer [close! >!!]])
+
       (defn process-files [tracker files]
-        (let [job-ch (add-job tracker)]
-            (>!! job-ch (start-progress (count files)))
+        (let [job-ch (as/add-job tracker)]
+            (>!! job-ch (as/start-progress (count files)))
             (doseq [f files]
               (>!! job-ch (str \"Processing: \" f))
               (process-single-file f)
-              (>!! job-ch (progress-tick)))
+              (>!! job-ch (as/progress-tick)))
             (close! job-ch)))
 
   When a job is changed in any way, it will briefly be highlighted (in bold font).
   If not updated for a set period of time (by default, 1 second) it will then dim (normal font).
+
+  On a heavily loaded system, updates into the channel may be discarded (using a sliding buffer).
+  This is preferable to having jobs block or park just to report their status.
 
   A terminated job will stay visible, but is moved up above any non-terminated jobs."
   [tracker-ch]
@@ -295,7 +316,7 @@
   "Returns a job update value that changes the status of the job (this does not affect
   its summary message or other properties).
 
-  The status of a job will affect the overall color of the job's line.
+  The status of a job will affect the overall color of the job's line on the status board.
 
   value
   : One of: :normal (the default), :success, :warning, :error."
@@ -303,21 +324,23 @@
   (->ChangeStatus value))
 
 (defn start-progress
-  "Returns a job update value that start progress torwards the indicated total."
+  "Returns a job update value that starts progress torwards the indicated total.
+
+  The job's status line will include a progress bar."
   [target]
   (->StartProgress target))
 
 (defn progress-tick
-  "Returns an update value for a job to increment its progress. The default amount is 1."
+  "Returns a job update value for a job to increment its progress. The default amount is 1."
   ([] (progress-tick 1))
   ([amount]
    (->ProgressTick amount)))
 
 (defn complete-progress
-  "Returns an update value for a job to complete its progress (setting its current
+  "Returns a job update value for a job to complete its progress (setting its current
   amount to its target amount).
 
-  This is especially useful given that, on a loaded system, the occasional job update
+  This is especially useful given that, on a very busy system, the occasional job update
   value may be discarded."
   []
   (->CompleteProgress))

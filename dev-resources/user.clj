@@ -28,7 +28,7 @@
      (close! ch))))
 
 (defn demo []
-  (let [t (status-tracker)
+  (let [t (ansi-status-board)
         j (add-job t)]
     (>!! j "adding one, two, three")
     (job (add-job t) "one" 100 50)
@@ -51,7 +51,6 @@
     ;; Without this sleep, the repl outputs a line saying "nil",
     ;; which screws up the final output of the lines.
     (Thread/sleep 100)))
-
 
 (defn reload []
   (load-file "src/com/walmartlabs/active_status.clj")
