@@ -263,9 +263,24 @@
 (defn add-job
   "Adds a new job, returning a channel for updates to the job.
 
-  You may push updates into the job's channel, or close the channel, to terminate the job.
+  You may put updates into the job's channel, or close the channel, to terminate the job.
 
   The primary job update is just a String, which changes the summary text for the job.
+
+  Other update objects can change the visible status of the job, or enable and update
+  a progress bar specific to the job. Functions such as [[change-status]] and
+  [[start-progress]] return job update values that can be put into the job's channel.
+
+  Example:
+
+      (defn process-files [tracker files]
+        (let [job-ch (add-job tracker)]
+            (>!! job-ch (start-progress (count files)))
+            (doseq [f files]
+              (>!! job-ch (str \"Processing: \" f))
+              (process-single-file f)
+              (>!! job-ch (progress-tick)))
+            (close! job-ch)))
 
   When a job is changed in any way, it will briefly be highlighted (in bold font).
   If not updated for a set period of time (by default, 1 second) it will then dim (normal font).
