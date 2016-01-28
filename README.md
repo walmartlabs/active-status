@@ -77,6 +77,16 @@ IntelliJ Terminal (IntelliJ 15, OS X) seems to work fine.
 Cursive REPL (Intellij 15, OS X) currently quite broken, alas.  But, then again, REPL oriented development and the
 status tracker are not a good mix (see the "other output" section above).
 
+
+### Future Directions
+
+It would be nice to come up with options that work, even if somewhat crippled, on Windows, or on unsupported terminal types.
+
+More options than the console score board are expected; these might include a pop-up Swing frame, or
+a client/server approach (with a server acting as the score board, and providing a web user interface).
+
+
+
 ----
 
 com.walmartlabs/active-status is released under the terms of the Apache Software License 2.0.
