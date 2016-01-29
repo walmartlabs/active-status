@@ -294,23 +294,23 @@
    :progress-column  55})
 
 (defn console-status-board
-  "Creates a new status board suitable for use in a command-line application;
+  "Creates a new status board suitable for use in a command-line application.
 
   Only a single console status board should be active at any one time; they will
   interfere with each other.
 
   The status board presents the status of any number of jobs.
   In this implementation, each job has a line in the status board, and
-  can be updated asynchronously.
+  can be updated individually and asynchronously.
 
   Each job has a summary message,
   an optional status (:normal, :success, :warning, :error),
   and optional progress state.
 
-  The board is presented using text and updates in place, using terminal capability
-  strings (to, for example, position the cursor and clear line content).
+  The board is presented using simple text, and updates in place, using terminal capability
+  strings (to, for example, position the cursor and clear existing content on a line).
 
-  The presentation includes the summary message; the status controls
+  The presentation includes the summary message; the job's status controls
   the font (that is, the color) for the message.  If progress state
   exists, then a progress bar is included for the job.
 
@@ -323,10 +323,9 @@
   configuration
   : The configuration to use for the tracker, defaulting to [[default-configuration]].
 
-
   The console status board depends on the `tput` command to be present on the system path;
-  it invokes it in a sub-shell to obtain terminal capabilities.  In addition, if the `TERM`
-  environment variable is not set, a default, `xterm` is used."
+  it invokes `tput` in a sub-shell to obtain terminal capabilities.  In addition, if the `TERM`
+  environment variable is not set, a default, `xterm`, is pass to `tput`."
   ([]
    (console-status-board default-console-configuration))
   ([configuration]
