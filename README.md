@@ -1,4 +1,4 @@
-## com.walmartslabs/active-status
+## walmartslabs/active-status
 
 [![Clojars Project](http://clojars.org/walmartlabs/active-status/latest-version.svg)](http://clojars.org/abs/active-status)
 
@@ -89,4 +89,4 @@ a client/server approach (with a server acting as the score board, and providing
 
 ----
 
-com.walmartlabs/active-status is released under the terms of the Apache Software License 2.0.
+walmartlabs/active-status is released under the terms of the Apache Software License 2.0.
