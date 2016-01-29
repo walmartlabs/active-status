@@ -13,7 +13,7 @@ A simple way to let asynchronous jobs report their status and progress.
 
 *Animated GIF coming soon*
 
-*API Link coming soon*
+[API Documentation](http://walmartlabs.github.io/active-status/)
 
 ### Example Code
 
