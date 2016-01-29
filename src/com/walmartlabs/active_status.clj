@@ -12,6 +12,7 @@
 ;; The job model:
 ;;
 ;; :summary - text string to display
+;; :pinned - if true, then updates to the model always move it to line 1 shifting others up
 ;; :status - optional status (:normal, :warning, etc.), affects color
 ;; :active - true if recently active (displayed bold), automatically cleared after a few ms
 ;; :updated - millis of last update, used to determine when to clear :active
@@ -200,7 +201,6 @@
 
   Returns the updated jobs, with the completed channel removed."
   [jobs job-ch refresh-output]
-  ; (println "complete-job" (-> (get jobs job-ch) (dissoc :channel)))
   (let [completed-line (get-in jobs [job-ch :line])
         ;; Any active lines between the completed job and the end of the list
         ;; need to move down one.
@@ -210,23 +210,48 @@
                        (assoc j :line (dec line))
                        j)))
         jobs' (as-> jobs %
-                   (medley/map-vals fix-line %)
-                   (update % job-ch
-                              assoc :active false
-                              :line (count jobs)))]
+                    (medley/map-vals fix-line %)
+                    (update % job-ch assoc
+                            :active false
+                            :pinned false
+                            :line (count jobs)))]
     (refresh-output jobs jobs')
     ;; And now we no longer need the job (or its channel)
     (dissoc jobs' job-ch)))
+
+(defn- adjust-if-pinned
+  "Adjust the just-updated job to line 1 if necessary."
+  [jobs job-pre job-ch]
+  (let [{:keys [pinned line active] :as job-post} (get jobs job-ch)]
+    (if (and pinned
+             active
+             (not= 1 line)
+             ;; Have to be selective about comparing only things that affect the
+             ;; line output.  :updated, :line, maybe :active are always changing
+             ;; (and :channel never does).
+             (not= (select-keys job-pre [:summary :status :progress])
+                   (select-keys job-post [:summary :status :progress])))
+      (as-> jobs %
+            (medley/map-vals (fn [j]
+                               (if (< (:line j) line)
+                                 (update j :line inc)
+                                 j))
+                             %)
+            (assoc % job-ch (assoc job-post :line 1)))
+      jobs)))
 
 (defn- update-jobs-status
   [jobs job-ch value dim-after-millis refresh-output]
   ;; A nil indicates that the channel closed, so complete the job.
   (try
     (if (some? value)
-      (let [jobs' (update jobs job-ch
-                          (fn [job]
-                            (-> (update-job value job)
-                                (apply-dim dim-after-millis))))]
+      (let [job-pre (get jobs job-ch)
+            jobs' (-> jobs
+                      (update job-ch
+                              (fn [job]
+                                (-> (update-job value job)
+                                    (apply-dim dim-after-millis))))
+                      (adjust-if-pinned job-pre job-ch))]
         (refresh-output jobs jobs')
         jobs')
       (complete-job jobs job-ch refresh-output))
@@ -349,14 +374,18 @@
   : A map of additional options:
 
   :status
-  : The initial status for the job."
+  : The initial status for the job (:normal, :success, :warning, :error).
+
+  :pinned
+  : If true, then any update to the job will move it to the first line, shifting others up.
+    You rarely want more than one pinned job."
   ([board-ch]
    (add-job board-ch nil))
   ([board-ch options]
-   (let [{:keys [status]} options
-         ch (chan (sliding-buffer 5))]
-     (put! board-ch {:channel ch
-                     :status  status})
+   (let [ch (chan (sliding-buffer 5))]
+     (put! board-ch (-> options
+                        (select-keys [:status :pinned])
+                        (assoc :channel ch)))
      ch)))
 
 (defn change-status

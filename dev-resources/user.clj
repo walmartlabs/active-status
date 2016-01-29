@@ -29,7 +29,7 @@
 
 (defn demo []
   (let [t (console-status-board)
-        j (add-job t {:status :success})]
+        j (add-job t {:status :success :pinned true})]
     (>!! j "adding one, two, three")
     (job (add-job t) "one" 100 50)
     (job (add-job t) "two" 500 100 :warning true)
@@ -41,12 +41,15 @@
     (job (add-job t) "five" 2000 30)
     (>!! j "second sleep")
     (Thread/sleep 3000)
-    (>!! j "adding six, seven")
     (job (add-job t) "six" 250 100 :error true)
     (job (add-job t) "seven" 10 1000 :normal true)
+    (Thread/sleep 2000)
     (>!! j "final (long) sleep")
     (Thread/sleep 15000)
     (>!! j "shutting down!")
+    (Thread/sleep 1000)
+    (close! j)
+    (Thread/sleep 1000)
     (close! t)
     ;; Without this sleep, the repl outputs a line saying "nil",
     ;; which screws up the final output of the lines.
