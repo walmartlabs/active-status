@@ -5,7 +5,8 @@
             [medley.core :as medley]
             [clojure.java.shell :refer [sh]]
             [clojure.string :as str]
-            [io.aviso.ansi :as ansi]))
+            [io.aviso.ansi :as ansi])
+  (:import (java.util.concurrent.atomic AtomicInteger)))
 
 (defn- millis [] (System/currentTimeMillis))
 
@@ -53,7 +54,9 @@
   (update-job [_ job]
     (-> job
         (assoc :active true)
-        (update-in [:progress :current] + amount))))
+        ;; Be tolerant of cases where the :progress key doesn't yet exist
+        ;; (sometimes happens when channel's updates are lost).
+        (update-in [:progress :current] (fnil + 0) amount))))
 
 (defrecord CompleteProgress []
 
@@ -104,19 +107,20 @@
     job))
 
 (defn- setup-new-job
-  [jobs composite-ch job]
+  [jobs composite-ch job job-id]
   (println)                                                 ; Add a new line for the new job
-  ;; Convert each value into a tuple of job-ch and update value, and push that
+  ;; Convert each value into a tuple of job-id and update value, and push that
   ;; value into the composite channel.
   (let [job-ch (:channel job)]
     (go-loop []
       (let [v (<! job-ch)]
-        (>! composite-ch [job-ch v])
+        (>! composite-ch [job-id v])
         (when v
           (recur))))
     (as-> jobs %
           (medley/map-vals increment-line %)
-          (assoc % job-ch (assoc job :line 1
+          (assoc % job-id (assoc job :id job-id
+                                     :line 1
                                      :active true)))))
 
 (def ^:private bar-length 30)
@@ -171,8 +175,8 @@
 
 (defn- refresh-output
   [progress-column old-jobs new-jobs]
-  (doseq [[job-ch job] new-jobs
-          :when (not= job (get old-jobs job-ch))
+  (doseq [[job-id job] new-jobs
+          :when (not= job (get old-jobs job-id))
           :let [{:keys [line summary active status updated progress]} job]]
     (print (str (tput "civis")                              ; make cursor invisible
                 (tput "sc")                                 ; save cursor position
@@ -200,8 +204,8 @@
   We can then do a refresh, and finally, discard the completed job.
 
   Returns the updated jobs, with the completed channel removed."
-  [jobs job-ch refresh-output]
-  (let [completed-line (get-in jobs [job-ch :line])
+  [jobs job-id refresh-output]
+  (let [completed-line (get-in jobs [job-id :line])
         ;; Any active lines between the completed job and the end of the list
         ;; need to move down one.
         fix-line (fn [j]
@@ -211,18 +215,18 @@
                        j)))
         jobs' (as-> jobs %
                     (medley/map-vals fix-line %)
-                    (update % job-ch assoc
+                    (update % job-id assoc
                             :active false
                             :pinned false
                             :line (count jobs)))]
     (refresh-output jobs jobs')
     ;; And now we no longer need the job (or its channel)
-    (dissoc jobs' job-ch)))
+    (dissoc jobs' job-id)))
 
 (defn- adjust-if-pinned
   "Adjust the just-updated job to line 1 if necessary."
-  [jobs job-pre job-ch]
-  (let [{:keys [pinned line active] :as job-post} (get jobs job-ch)]
+  [jobs job-pre job-id]
+  (let [{:keys [pinned line active] :as job-post} (get jobs job-id)]
     (if (and pinned
              active
              (not= 1 line)
@@ -237,28 +241,28 @@
                                  (update j :line inc)
                                  j))
                              %)
-            (assoc % job-ch (assoc job-post :line 1)))
+            (assoc % job-id (assoc job-post :line 1)))
       jobs)))
 
 (defn- update-jobs-status
-  [jobs job-ch value dim-after-millis refresh-output]
+  [jobs job-id value dim-after-millis refresh-output]
   ;; A nil indicates that the channel closed, so complete the job.
   (try
     (if (some? value)
-      (let [job-pre (get jobs job-ch)
+      (let [job-pre (get jobs job-id)
             jobs' (-> jobs
-                      (update job-ch
+                      (update job-id
                               (fn [job]
                                 (-> (update-job value job)
                                     (apply-dim dim-after-millis))))
-                      (adjust-if-pinned job-pre job-ch))]
+                      (adjust-if-pinned job-pre job-id))]
         (refresh-output jobs jobs')
         jobs')
-      (complete-job jobs job-ch refresh-output))
+      (complete-job jobs job-id refresh-output))
     (catch Throwable t
       (throw (ex-info "Failure updating job status."
                       {:jobs         jobs
-                       :job-ch       job-ch
+                       :job-id       job-id
                        :update-value value}
                       t)))))
 
@@ -267,15 +271,17 @@
   ;; jobs is keyed on job channel, value is the data about that job
   (let [{:keys [dim-after-millis progress-column]} configuration
         composite-ch (chan 10)
-        refresh-output' (partial refresh-output progress-column)]
+        refresh-output' (partial refresh-output progress-column)
+        key-source (AtomicInteger.)]
     (go-loop [jobs {}]
       (alt!
         new-jobs-ch ([v]
                       (if (some? v)
-                        (recur (setup-new-job jobs composite-ch v))
+                        (recur (setup-new-job jobs composite-ch v (.incrementAndGet key-source)))
                         ;; Finalize the output and exit the go loop:
                         (let [jobs' (medley/map-vals #(assoc % :active false)
                                                      jobs)]
+                          ;; Final output, all jobs inactive but otherwise unchanged:
                           (refresh-output' jobs jobs'))))
 
         composite-ch ([[job-ch value]]
