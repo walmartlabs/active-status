@@ -1,4 +1,4 @@
-## 0.1.1 - UNRELEASED
+## 0.1.1 - 02 Feb 2016
 
 Fix bug where status would be indented by one space.
 
