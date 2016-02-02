@@ -386,7 +386,7 @@
   ([board-ch]
    (add-job board-ch nil))
   ([board-ch options]
-   (let [ch (chan (sliding-buffer 5))]
+   (let [ch (chan (sliding-buffer 10))]
      (put! board-ch (-> options
                         (select-keys [:status :pinned])
                         (assoc :channel ch)))
