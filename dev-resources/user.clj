@@ -1,7 +1,7 @@
 (ns user
   (:use com.walmartlabs.active-status
         clojure.repl)
-  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!!
+  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!
                                         ]]))
 
 
@@ -59,3 +59,51 @@
   (load-file "src/com/walmartlabs/active_status.clj")
   (load-file "dev-resources/user.clj")
   (println "Reloaded."))
+
+
+(defn progress-job
+  [t message target delay]
+  (let [job (add-job t)]
+    (go
+      (>! job message)
+      (>! job (start-progress target))
+
+      (dotimes [_ target]
+        (<! (timeout delay))
+        (>! job (progress-tick)))
+
+      (>! job (complete-progress))
+      (>! job (change-status :success))
+      (<! (timeout 100))
+      (close! job))))
+
+(defn simple-job
+  [t message delay]
+  (let [job (add-job t)]
+    (go
+      (>! job (str message " ..."))
+      (<! (timeout delay))
+      (>! job (str message " \u2713"))
+      (>! job (change-status :success))
+      (<! (timeout delay))
+      (close! job))))
+
+(defn start-batmobile
+  ([]
+   (let [t (console-status-board)]
+     (<!! (start-batmobile t))
+     (close! t)
+     (Thread/sleep 100)))
+  ([t]
+    (go
+      (let [channels [(simple-job t "Atomic turbines to speed" 2000)
+                      (progress-job t "Loading Bat Fuel" 15 250)
+                      (progress-job t "Rotating Batmobile platform" 180 10)
+                      (simple-job t "Initializing on-board Bat-computer" 1000)
+                      (go
+                        (<! (timeout 1000))
+                        (doto (add-job t {:status :warning})
+                            (>! "Please fasten your Bat-seatbelts")))]]
+        (doseq [ch channels]
+          (<! ch)                                           ; wait for each sub-job to finish
+          )))))
