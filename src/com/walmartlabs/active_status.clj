@@ -177,7 +177,7 @@
     (print (str (tput "civis")                              ; make cursor invisible
                 (tput "sc")                                 ; save cursor position
                 (tput "UP" line)                            ; cursor up
-                (tput "hpa" 1)                              ; move to columns
+                (tput "hpa" 0)                              ; move to leftmost column
                 (when active
                   ansi/bold-font)
                 (status-to-ansi status)
@@ -319,6 +319,11 @@
   This function returns a channel; the channel can be passed to [[add-job]].
 
   Close the returned channel to shut down the status board immediately.
+
+  Note that when testing in the REPL, you may see slightly odd output as the REPL
+  will return and print nil *before* the final update to the status board. Adding
+  a short sleep after closing the status board channel, but before returning, is
+  useful in the REPL.
 
   configuration
   : The configuration to use for the tracker, defaulting to [[default-configuration]].
