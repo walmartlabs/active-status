@@ -11,7 +11,7 @@ And what if that application is doing things asynchronously?  What kind of outpu
 That's what active-status is for; it provides a status board ... console output that updates in-place.
 A simple way to let asynchronous jobs report their status and progress.
 
-*Animated GIF coming soon*
+![batman demo](images/active-progress-batman-demo.gif)
 
 [API Documentation](http://walmartlabs.github.io/active-status/)
 
