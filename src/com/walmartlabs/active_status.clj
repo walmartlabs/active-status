@@ -266,7 +266,7 @@
   [new-jobs-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
   (let [{:keys [dim-after-millis progress-column]} configuration
-        composite-ch (chan 1)
+        composite-ch (chan 10)
         refresh-output' (partial refresh-output progress-column)]
     (go-loop [jobs {}]
       (alt!
@@ -289,7 +289,7 @@
 
   :progress-column
   : Column in which to display progress (which may truncate the job's summary);
-    defaults to 45."
+    defaults to 55."
   {:dim-after-millis 1000
    :progress-column  55})
 
@@ -307,12 +307,11 @@
   an optional status (:normal, :success, :warning, :error),
   and optional progress state.
 
-  The board is presented using simple text, and updates in place, using terminal capability
-  strings (to, for example, position the cursor and clear existing content on a line).
+  The job's status control the font color for the entire line.
+  If progress state exists, then a progress bar is included for the job.
 
-  The presentation includes the summary message; the job's status controls
-  the font (that is, the color) for the message.  If progress state
-  exists, then a progress bar is included for the job.
+  The board is presented using simple text, and updates in place, using terminal capability
+  strings to position the cursor, clear existing content on a line, and so forth.
 
   The status board runs as a core.async process.
 
@@ -326,11 +325,11 @@
   useful in the REPL.
 
   configuration
-  : The configuration to use for the tracker, defaulting to [[default-configuration]].
+  : The configuration to use for the status board, defaulting to [[default-configuration]].
 
   The console status board depends on the `tput` command to be present on the system path;
   it invokes `tput` in a sub-shell to obtain terminal capabilities.  In addition, if the `TERM`
-  environment variable is not set, a default, `xterm`, is pass to `tput`."
+  environment variable is not set, a default, `xterm`, is passed to `tput`."
   ([]
    (console-status-board default-console-configuration))
   ([configuration]
@@ -386,7 +385,7 @@
   ([board-ch]
    (add-job board-ch nil))
   ([board-ch options]
-   (let [ch (chan (sliding-buffer 10))]
+   (let [ch (chan (sliding-buffer 3))]
      (put! board-ch (-> options
                         (select-keys [:status :pinned])
                         (assoc :channel ch)))
