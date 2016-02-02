@@ -59,8 +59,9 @@ may inadvertently wrap the output.
 #### Other output
  
 The library has no way of determining if some other part of the application is writing to `*out*` or `*err*`.
-Any such output will either move the cursor or scroll the screen; the application uses relative cursor access
-so either of this will cause job output to be printed on the wrong lines (lower than expected). 
+Any such output will either move the cursor or scroll the screen; the library uses relative cursor motion
+when updating a job's line in the status board,
+so either of these cases will cause job output to be printed on the wrong lines (lower than expected). 
 This is compounded by the fact that job lines are only updated when the underlying data is changed (by sending an 
 update to the job's channel).
 
@@ -85,7 +86,7 @@ It would be nice to come up with options that work, even if somewhat crippled, o
 More options than the console score board are expected; these might include a pop-up Swing frame, or
 a client/server approach (with a server acting as the score board, and providing a web user interface).
 
-
+A ClojureScript variant, especially one that could work in Node, would be valuable.
 
 ----
 
