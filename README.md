@@ -36,7 +36,8 @@ A simple way to let asynchronous jobs report their status and progress.
 ```
 
 Of course, this is a simple example. You are more likely to have multiple jobs running at any one time,
-of different types, and to make use of core.async go blocks, rather than traditional single-threaded code.
+of different types, implemented as core.async go blocks, rather than traditional single-threaded code
+in this example.
 
 
 ### Limitations

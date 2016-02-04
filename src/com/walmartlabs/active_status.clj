@@ -148,6 +148,11 @@
                      current
                      target))))))
 
+(def ^:dynamic ^{:added "0.1.2"} *terminal-type*
+  "The terminal type used when invoking `tput`.  Defaults to the value of the
+  TERM environment variable or, if not set, the explicit value 'term'."
+  (or (System/getenv "TERM") "xterm"))
+
 (defn- transmute-out
   ":out from sh can be byte[] or String."
   [s]
@@ -157,8 +162,7 @@
 
 (defn- tput*
   [args]
-  (let [terminal-type (or (System/getenv "TERM") "xterm")
-        {:keys [exit out err]} (apply sh "tput" (str "-T" terminal-type) (mapv str args))]
+  (let [{:keys [exit out err]} (apply sh "tput" (str "-T" *terminal-type*) (mapv str args))]
     (if (= 0 exit)
       (transmute-out out)
       (binding [*out* *err*]
