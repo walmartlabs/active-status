@@ -342,7 +342,10 @@
           (if (some? v)
             (recur (setup-new-job jobs composite-ch v (.incrementAndGet key-source))
                    ;; There's no need to update now (if there wasn't already)
-                   ;; because new jobs are always just a blank line.
+                   ;; because new jobs are always just a blank line (until the first update),
+                   ;; which has already been printed.
+                   ;; Unfortunately, incrementing :line for all jobs means that
+                   ;; the next status board refresh will be a full repaint of all jobs.
                    interval-ch)
             ;; Finalize the output and exit the go loop:
             (->> jobs
