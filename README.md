@@ -1,6 +1,6 @@
 ## walmartlabs/active-status
 
-[![Clojars Project](http://clojars.org/walmartlabs/active-status/latest-version.svg)](http://clojars.org/abs/active-status)
+[![Clojars Project](http://clojars.org/walmartlabs/active-status/latest-version.svg)](http://clojars.org/walmartlabs/active-status)
 
 An update-in-place status board for asynchronous processes inside your Clojure command line application.
 
