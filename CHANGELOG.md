@@ -1,4 +1,4 @@
-## 0.1.3 - UNRELEASED
+## 0.1.3 - 05 Feb 2016
 
 Added `*terminal-type*` Var, to override default terminal type passed to the `tput` command.
 
