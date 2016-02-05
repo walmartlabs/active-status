@@ -97,7 +97,7 @@
   ([t]
     (go
       (let [channels [(simple-job t "Atomic turbines to speed" 2000)
-                      (progress-job t "Loading Bat Fuel" 15 250)
+                      (progress-job t "Loading Bat-fuel" 15 250)
                       (progress-job t "Rotating Batmobile platform" 180 10)
                       (simple-job t "Initializing on-board Bat-computer" 1000)
                       (go
