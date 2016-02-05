@@ -314,44 +314,65 @@
     (assoc job :active false)
     job))
 
+
+(defn- next-timeout
+  "Create the next timeout after a refresh. This is nil when there are no
+  active jobs (because the interval timeout is also used to mark active jobs
+  inactive after a delay)."
+  [jobs update-millis]
+  (when (->> jobs
+             vals
+             (some :active))
+    (timeout update-millis)))
+
 (defn- start-process
   [new-jobs-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
   (let [{:keys [update-millis dim-after-millis]} configuration
         composite-ch (chan 10)
+        forever-timeout-ch (chan)
         refresh-ch (chan)
         key-source (AtomicInteger.)
         refreshed-jobs-ch (start-refresh-process configuration refresh-ch)]
     (go-loop [jobs {}
-              interval-ch (timeout update-millis)]
+              interval-ch nil]
       (alt!
-        new-jobs-ch ([v]
-                      (if (some? v)
-                        (recur (setup-new-job jobs composite-ch v (.incrementAndGet key-source))
-                               interval-ch)
-                        ;; Finalize the output and exit the go loop:
-                        (->> jobs
-                             (medley/map-vals #(assoc % :active false
-                                                        :complete true))
-                             (>! refresh-ch))))
+        new-jobs-ch
+        ([v]
+          (if (some? v)
+            (recur (setup-new-job jobs composite-ch v (.incrementAndGet key-source))
+                   ;; There's no need to update now (if there wasn't already)
+                   ;; because new jobs are always just a blank line.
+                   interval-ch)
+            ;; Finalize the output and exit the go loop:
+            (->> jobs
+                 (medley/map-vals #(assoc % :active false
+                                            :complete true))
+                 (>! refresh-ch))))
 
-        interval-ch (let [jobs' (try
-                                  (medley/map-vals #(apply-dim dim-after-millis %) jobs)
-                                  (catch Throwable t
-                                    (throw (ex-info "apply-dim failed"
-                                                    {:jobs          jobs
-                                                     :configuration configuration}
-                                                    t))))
-                          ;; Ask it to refresh the output
-                          _ (>! refresh-ch jobs')
-                          ;; Continue after it finishes, with the revised job map
-                          ;; (reflecting the removal of inactive, complete jobs)
-                          refreshed-jobs (<! refreshed-jobs-ch)]
-                      (recur refreshed-jobs (timeout update-millis)))
+        ;; We try to keep interval-ch as nil when there's no
+        ;; need for an update.
+        (or interval-ch forever-timeout-ch)
+        (let [jobs' (try
+                      (medley/map-vals #(apply-dim dim-after-millis %) jobs)
+                      (catch Throwable t
+                        (throw (ex-info "apply-dim failed"
+                                        {:jobs          jobs
+                                         :configuration configuration}
+                                        t))))
+              ;; Ask it to refresh the output
+              _ (>! refresh-ch jobs')
+              ;; Continue after it finishes, with the revised job map
+              ;; (reflecting the removal of inactive, complete jobs)
+              refreshed-jobs (<! refreshed-jobs-ch)]
+          (recur refreshed-jobs
+                 (next-timeout refreshed-jobs update-millis)))
 
-        composite-ch ([[job-ch value]]
-                       (recur (update-jobs-status jobs job-ch value)
-                              interval-ch))))))
+        composite-ch
+        ([[job-ch value]]
+          (recur (update-jobs-status jobs job-ch value)
+                 (or interval-ch
+                     (timeout update-millis))))))))
 
 (def default-console-configuration
   "The configuration used (by default) for a console status board.
@@ -443,7 +464,7 @@
 
   A terminated job will stay visible, but is moved up above any non-terminated jobs.
   It will highlight for a moment as well.
-  On some terminals, it will render in italic font.
+
 
   board-ch
   : The channel for the score board, as returned by [[console-status-board]].
