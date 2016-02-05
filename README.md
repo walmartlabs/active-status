@@ -52,6 +52,10 @@ text).
 
 This largely eliminates the use of the library on Windows platforms.
 
+In addition, the library uses italic font for completed jobs ... but even on OS X, neither Terminal.app
+nor iTerm.app supports italics out of the box; this [post](https://alexpearce.me/2014/05/italics-in-iterm2-vim-tmux/)
+explains how to setup italics. 
+
 #### Terminal width
 
 The library currently doesn't know about the width of the terminal; it will output any job summary text provided, and
