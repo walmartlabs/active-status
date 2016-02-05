@@ -1,4 +1,4 @@
-## 0.1.2 - UNRELEASED
+## 0.1.3 - UNRELEASED
 
 Added `*terminal-type*` Var, to override default terminal type passed to the `tput` command.
 
@@ -8,7 +8,7 @@ This greatly reduces the amount of output to `*out*`.
 
 Because of the optimizations to output, the job channels are no longer lossy.
 
-## 0.1.1 - 02 Feb 2016
+## 0.1.2 - 02 Feb 2016
 
 Fix bug where status would be indented by one space.
 
