@@ -1,11 +1,12 @@
 ## 0.1.2 - UNRELEASED
 
-Added `*terminal-type*` Var, to override default terminate type passed to the `tput` command.
+Added `*terminal-type*` Var, to override default terminal type passed to the `tput` command.
 
-Limits refreshes of the status board to intervals; 100ms by default.
+There status board now refreshes at an interval (that defaults to 100ms), rather than
+after every change.
+This greatly reduces the amount of output to `*out*`.
 
-No longer "looses" job channel updates; the refresh interval means that the status board
-can keep up.
+Because of the optimizations to output, the job channels are no longer lossy.
 
 ## 0.1.1 - 02 Feb 2016
 
