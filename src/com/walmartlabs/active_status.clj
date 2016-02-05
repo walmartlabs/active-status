@@ -218,7 +218,7 @@
                          ))
                      jobs)))
 
-(defn find-min-line
+(defn- find-min-line
   [jobs pred]
   (let [matching-lines (->> jobs
                             vals
