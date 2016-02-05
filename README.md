@@ -1,4 +1,4 @@
-## walmartslabs/active-status
+## walmartlabs/active-status
 
 [![Clojars Project](http://clojars.org/walmartlabs/active-status/latest-version.svg)](http://clojars.org/abs/active-status)
 
