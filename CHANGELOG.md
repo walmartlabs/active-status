@@ -3,8 +3,10 @@
 It is now possible to set a prefix for a job; typically used to identify the job (much like a thread name).
 
 An alternate, simplified implementation of the status board is now available as
-`com.walmartlabs.active-status.minimal-board/status-board`. This is suitable for use
+`com.walmartlabs.active-status.minimal-board/minimal-status-board`. This is suitable for use
 during development, when a proper terminal is not available.
+
+Added a simple component wrapper around the status board.
 
 ## 0.1.3 - 05 Feb 2016
 

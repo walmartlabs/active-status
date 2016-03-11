@@ -83,6 +83,15 @@ IntelliJ Terminal (IntelliJ 15, OS X) seems to work fine.
 Cursive REPL (Intellij 15, OS X) currently quite broken, alas.  But, then again, REPL oriented development and the
 status tracker are not a good mix (see the "other output" section above).
 
+### Component
+
+The namespace `com.walmartlabs.active-status.component` defines a component that may be used
+within a overall component system, which uses configuration to decide whether
+to instantiate the console status board, or the minimal status board.
+ 
+See [com.stuartsierra/component](https://github.com/stuartsierra/component) 
+and [io.aviso/config](https://github.com/AvisoNovate/config).
+
 
 ### Future Directions
 

@@ -19,7 +19,9 @@ complicated ANSI cursor motion of the active status board."
     ch))
 
 (defprotocol UpdateModel
-  (update-model [this model]))
+  "Not intended for use outside this namespace."
+  (update-model [this model]
+    "Use this value to upodate the simplified job model."))
 
 (extend-protocol UpdateModel
 
@@ -61,7 +63,7 @@ complicated ANSI cursor motion of the active status board."
         (recur)))
     (close! print-loop-ch)))
 
-(defn status-board
+(defn minimal-status-board
   "Creates a minimal status board.
 
   Jobs can be added to the minimal status board, just as with the standard status board.

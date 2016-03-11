@@ -493,6 +493,7 @@
   ([board-ch]
    (add-job board-ch nil))
   ([board-ch options]
+   {:pre [board-ch]}
    (let [ch (chan 3)]
      (put! board-ch (-> options
                         (select-keys [:status :pinned])
