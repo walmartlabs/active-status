@@ -1,4 +1,4 @@
-## 0.1.4 - UNRELEASED
+## 0.1.4 - 11 May 2016
 
 It is now possible to set a prefix for a job; typically used to identify the job (much like a thread name).
 
