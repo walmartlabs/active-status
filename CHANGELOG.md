@@ -8,6 +8,8 @@ during development, when a proper terminal is not available.
 
 Added a simple component wrapper around the status board.
 
+[Closed Issues](https://github.com/walmartlabs/active-status/issues?q=milestone%3A0.1.4)
+
 ## 0.1.3 - 05 Feb 2016
 
 Added `*terminal-type*` Var, to override default terminal type passed to the `tput` command.
