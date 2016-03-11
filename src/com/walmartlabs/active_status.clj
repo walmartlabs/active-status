@@ -539,11 +539,11 @@
 
 (defn ^{:added "0.1.4"}
   set-prefix
-  "Returns an update for for a job to set its prefix.
+  "Returns an update value for a job to set its prefix.
 
   The prefix typically is used to provide an identity to a job.
 
-  The prefix should typically end with a space, to separate it from the job's text.
+  The prefix should typically end with a space, to separate it from the job's summary text.
 
   The prefix may be set to nil to remove it."
   [prefix]
