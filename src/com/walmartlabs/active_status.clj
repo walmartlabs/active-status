@@ -13,18 +13,19 @@
 ;; The job model:
 ;;
 ;; :summary - text string to display
+;; :prefix - optional prefix string before the summary
 ;; :pinned - if true, then updates to the model always move it to line 1 shifting others up
 ;; :status - optional status (:normal, :warning, etc.), affects color
 ;; :active - true if recently active (displayed bold), automatically cleared after a few ms
 ;; :closed - true once the channel is closed
 ;; :updated - millis of last update, used to determine when to clear :active
-;; :line - lines up from cursor for the job (changes when new jobs are added)
+;; :line - lines up from cursor for the job (changes when new jobs are added, or existing jobs completed)
 ;; :progress - a progress model, if non-nil, progress will be displayed
 
 ;; A progress model:
 ;; :target - target value to reach
 ;; :current - current value towards target
-;; :created - time when progress model first created
+;; :created - time when progress model first created (used to compute ETA)
 
 
 (defprotocol JobUpdater
@@ -72,6 +73,11 @@
   JobUpdater
   (update-job [_ job]
     (assoc job :status new-status)))
+
+(defrecord ^{:added "0.1.4"} SetPrefix [prefix]
+  JobUpdater
+  (update-job [_ job]
+    (assoc job :prefix prefix)))
 
 (defn- increment-line
   [job]
@@ -151,7 +157,7 @@
   [progress-column old-jobs new-jobs]
   (doseq [[job-id job] new-jobs
           :when (not= job (get old-jobs job-id))
-          :let [{:keys [line summary active complete status updated progress]} job]]
+          :let [{:keys [line prefix summary active complete status updated progress]} job]]
     (print (str (tput "civis")                              ; make cursor invisible
                 (tput "sc")                                 ; save cursor position
                 (tput "UP" line)                            ; cursor up
@@ -166,6 +172,7 @@
                   complete
                   ansi/italic-font)
 
+                prefix                                      ; when non-nil, you want a separator character
                 summary
                 (when progress
                   (str (tput "hpa" progress-column)
@@ -244,6 +251,8 @@
                 assoc :complete true :active true :updated (millis))
         (move-job-up job-id new-line))))
 
+(def ^:private output-keys [:summary :status :progress :prefix])
+
 (defn- adjust-if-pinned
   "Adjust the just-updated job to line 1 if necessary."
   [jobs job-pre job-id]
@@ -254,8 +263,8 @@
              ;; Have to be selective about comparing only things that affect the
              ;; line output.  :updated, :line, maybe :active are always changing
              ;; (and :channel never does).
-             (not= (select-keys job-pre [:summary :status :progress])
-                   (select-keys job-post [:summary :status :progress])))
+             (not= (select-keys job-pre output-keys)
+                   (select-keys job-post output-keys)))
       (as-> jobs %
             (medley/map-vals (fn [j]
                                (if (< (:line j) line)
@@ -527,3 +536,15 @@
   "Returns an update value for a job to clear the progress entirely, removing the progress bar."
   []
   (->ClearProgress))
+
+(defn ^{:added "0.1.4"}
+  set-prefix
+  "Returns an update for for a job to set its prefix.
+
+  The prefix typically is used to provide an identity to a job.
+
+  The prefix should typically end with a space, to separate it from the job's text.
+
+  The prefix may be set to nil to remove it."
+  [prefix]
+  (->SetPrefix prefix))

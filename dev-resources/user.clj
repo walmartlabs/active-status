@@ -2,7 +2,8 @@
   (:use com.walmartlabs.active-status
         clojure.repl)
   (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!
-                                        ]]))
+                                        ]])
+  (:import (java.util UUID)))
 
 
 (defn- job
@@ -10,6 +11,7 @@
    (job ch name speed count :normal false))
   ([ch name speed count status progress]
    (go
+     (>! ch (-> (UUID/randomUUID) (str " ") set-prefix))
      (dotimes [i count]
        (when (= i 0)
          (>! ch (str name " - started"))

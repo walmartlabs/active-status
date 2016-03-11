@@ -6,14 +6,12 @@
 
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.2.374"]
-                 [medley "0.7.0"]
-                 [io.aviso/toolchest "0.1.3"]
-                 [io.aviso/pretty "0.1.22"]]
-
+                 [medley "0.7.3"]
+                 [io.aviso/toolchest "0.1.4"]
+                 [io.aviso/pretty "0.1.24"]]
   :aliases {"release" ["do"
                        "clean,"
-                       "codox,"
                        "deploy" "clojars"]}
   :codox {:source-uri "https://github.com/walmartlabs/active-status/master/{filepath}#L{line}"
           :metadata   {:doc/format :markdown}}
-  :plugins [[lein-codox "0.9.0"]])
+  :plugins [[lein-codox "0.9.3"]])
