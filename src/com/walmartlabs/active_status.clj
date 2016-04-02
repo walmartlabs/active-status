@@ -153,36 +153,37 @@
     (fn [& args]
       (tput* args))))
 
-(defn- refresh-job
+(defn- refresh-status-board
   [progress-column old-jobs new-jobs]
-  (doseq [[job-id job] new-jobs
-          :when (not= job (get old-jobs job-id))
-          :let [{:keys [line prefix summary active complete status updated progress]} job]]
-    (print (str (tput "civis")                              ; make cursor invisible
-                (tput "sc")                                 ; save cursor position
-                (tput "UP" line)                            ; cursor up
-                (tput "hpa" 0)                              ; move to leftmost column
-                (tput "ce")                                 ; clear to end-of-line
-                (status-to-ansi status)
-                (cond
-                  active
-                  ansi/bold-font
+  (locking [*out*]
+    (doseq [[job-id job] new-jobs
+            :when (not= job (get old-jobs job-id))
+            :let [{:keys [line prefix summary active complete status updated progress]} job]]
+      (print (str (tput "civis")                            ; make cursor invisible
+               (tput "sc")                                  ; save cursor position
+               (tput "UP" line)                             ; cursor up
+               (tput "hpa" 0)                               ; move to leftmost column
+               (tput "ce")                                  ; clear to end-of-line
+               (status-to-ansi status)
+               (cond
+                 active
+                 ansi/bold-font
 
-                  ;; Few terminals seem to support italic out of the box, alas.
-                  complete
-                  ansi/italic-font)
+                 ;; Few terminals seem to support italic out of the box, alas.
+                 complete
+                 ansi/italic-font)
 
-                prefix                                      ; when non-nil, you want a separator character
-                summary
-                (when progress
-                  (str (tput "hpa" progress-column)
-                       " "
-                       (format-progress updated progress)))
-                ansi/reset-font
-                (tput "rc")                                 ; restore cursor position
-                (tput "cvvis")                              ; make cursor visible
-                ))
-    (flush)))
+               prefix                                      ; when non-nil, you want a separator character
+               summary
+               (when progress
+                 (str (tput "hpa" progress-column)
+                   " "
+                   (format-progress updated progress)))
+               ansi/reset-font
+               (tput "rc")                                  ; restore cursor position
+               (tput "cvvis")                               ; make cursor visible
+               ))
+      (flush))))
 
 (defn- move-job-up
   [jobs job-id new-line]
@@ -306,7 +307,7 @@
         {:keys [progress-column]} configuration]
     (go-loop [prior-jobs {}]
       (when-let [new-jobs (<! in-ch)]
-        (refresh-job progress-column prior-jobs new-jobs)
+        (refresh-status-board progress-column prior-jobs new-jobs)
         (let [new-jobs' (medley/remove-vals #(and (:complete %)
                                                   (not (:active %)))
                                             new-jobs)]

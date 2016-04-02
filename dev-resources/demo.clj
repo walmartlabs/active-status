@@ -1,10 +1,8 @@
-(ns user
+(ns demo
   (:use com.walmartlabs.active-status
         clojure.repl)
-  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!
-                                        ]])
+  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!]])
   (:import (java.util UUID)))
-
 
 (defn- job
   ([ch name speed count]
