@@ -1,4 +1,7 @@
-## 0.1.5 - UNRELEASED
+## 0.1.5 - 8 Apr 2016
+
+Lock `*out*` during output. This helps to ensure that output from the console does not
+interleave with exception output written to the console.
 
 ## 0.1.4 - 11 May 2016
 
