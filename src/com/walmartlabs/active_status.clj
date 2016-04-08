@@ -1,5 +1,5 @@
 (ns com.walmartlabs.active-status
-  "Manage asynchronous status of multiple concurrent jobs within a command-line application."
+  "Present asynchronous status of multiple concurrent jobs within a command-line application."
   (:require [clojure.core.async :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout]]
             [io.aviso.toolchest.macros :refer [cond-let]]
             [medley.core :as medley]
@@ -23,6 +23,7 @@
 ;; :progress - a progress model, if non-nil, progress will be displayed
 
 ;; A progress model:
+;;
 ;; :target - target value to reach
 ;; :current - current value towards target
 ;; :created - time when progress model first created (used to compute ETA)
