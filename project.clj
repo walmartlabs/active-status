@@ -6,7 +6,7 @@
 
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.2.374"]
-                 [medley "0.7.3"]
+                 [medley "0.8.1"]
                  [io.aviso/toolchest "0.1.4"]
                  [io.aviso/pretty "0.1.26"]
                  [io.aviso/config "0.1.13" :optional true]]
