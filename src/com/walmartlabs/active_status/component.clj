@@ -51,11 +51,13 @@
     (active-status/add-job board-ch options)))
 
 (defn status-board
-  "Creates the status board component.
+  "Creates the status board component, returning a system map
+  that may be merged into an overall system.
 
   Jobs may not be added to the board until after it is started.
 
-  The compnent uses the profile :status-board for configuration."
+  The component uses the profile :status-board for configuration."
   []
-  (-> (map->StatusBoardComponent {})
-      (config/with-config-schema :status-board StatusBoardConfig)))
+  (component/system-map
+    :status-board (-> (map->StatusBoardComponent {})
+                      (config/with-config-schema :status-board StatusBoardConfig))))
