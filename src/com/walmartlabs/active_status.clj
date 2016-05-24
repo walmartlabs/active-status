@@ -106,18 +106,18 @@
 
 (defn- format-progress
   [updated {:keys [current target created]}]
-  (let [displayable (and (pos? target) (pos? current))
-        completed-ratio (if displayable (/ current target) 0)
+  (let [displayable      (and (pos? target) (pos? current))
+        completed-ratio  (if displayable (/ current target) 0)
         completed-length (int (* completed-ratio bar-length))]
     (str "["
          (subs bars 0 completed-length)
          (subs spaces 0 (- bar-length completed-length))
          "]"
          (when displayable
-           (let [elapsed (- updated created)
+           (let [elapsed          (- updated created)
                  remaining-millis (- (/ elapsed completed-ratio) elapsed)
-                 seconds (mod (int (/ remaining-millis 1000)) 60)
-                 minutes (int (/ remaining-millis 60000))]
+                 seconds          (mod (int (/ remaining-millis 1000)) 60)
+                 minutes          (int (/ remaining-millis 60000))]
              (format " ETA: %02d:%02d %3d%% %d/%d"
                      minutes
                      seconds
@@ -161,29 +161,29 @@
             :when (not= job (get old-jobs job-id))
             :let [{:keys [line prefix summary active complete status updated progress]} job]]
       (print (str (tput "civis")                            ; make cursor invisible
-               (tput "sc")                                  ; save cursor position
-               (tput "UP" line)                             ; cursor up
-               (tput "hpa" 0)                               ; move to leftmost column
-               (tput "ce")                                  ; clear to end-of-line
-               (status-to-ansi status)
-               (cond
-                 active
-                 ansi/bold-font
+                  (tput "sc")                               ; save cursor position
+                  (tput "cuu" line)                         ; cursor up
+                  (tput "hpa" 0)                            ; move to leftmost column
+                  (tput "el")                               ; clear to end-of-line
+                  (status-to-ansi status)
+                  (cond
+                    active
+                    ansi/bold-font
 
-                 ;; Few terminals seem to support italic out of the box, alas.
-                 complete
-                 ansi/italic-font)
+                    ;; Few terminals seem to support italic out of the box, alas.
+                    complete
+                    ansi/italic-font)
 
-               prefix                                      ; when non-nil, you want a separator character
-               summary
-               (when progress
-                 (str (tput "hpa" progress-column)
-                   " "
-                   (format-progress updated progress)))
-               ansi/reset-font
-               (tput "rc")                                  ; restore cursor position
-               (tput "cvvis")                               ; make cursor visible
-               ))
+                  prefix                                    ; when non-nil, you want a separator character
+                  summary
+                  (when progress
+                    (str (tput "hpa" progress-column)
+                         " "
+                         (format-progress updated progress)))
+                  ansi/reset-font
+                  (tput "rc")                               ; restore cursor position
+                  (tput "cvvis")                            ; make cursor visible
+                  ))
       (flush))))
 
 (defn- move-job-up
@@ -340,11 +340,11 @@
   [new-jobs-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
   (let [{:keys [update-millis dim-after-millis]} configuration
-        composite-ch (chan 10)
+        composite-ch       (chan 10)
         forever-timeout-ch (chan)
-        refresh-ch (chan)
-        key-source (AtomicInteger.)
-        refreshed-jobs-ch (start-refresh-process configuration refresh-ch)]
+        refresh-ch         (chan)
+        key-source         (AtomicInteger.)
+        refreshed-jobs-ch  (start-refresh-process configuration refresh-ch)]
     (go-loop [jobs {}
               interval-ch nil]
       (alt!
@@ -367,15 +367,15 @@
         ;; We try to keep interval-ch as nil when there's no
         ;; need for an update.
         (or interval-ch forever-timeout-ch)
-        (let [jobs' (try
-                      (medley/map-vals #(apply-dim dim-after-millis %) jobs)
-                      (catch Throwable t
-                        (throw (ex-info "apply-dim failed"
-                                        {:jobs          jobs
-                                         :configuration configuration}
-                                        t))))
+        (let [jobs'          (try
+                               (medley/map-vals #(apply-dim dim-after-millis %) jobs)
+                               (catch Throwable t
+                                 (throw (ex-info "apply-dim failed"
+                                                 {:jobs          jobs
+                                                  :configuration configuration}
+                                                 t))))
               ;; Ask it to refresh the output
-              _ (>! refresh-ch jobs')
+              _              (>! refresh-ch jobs')
               ;; Continue after it finishes, with the revised job map
               ;; (reflecting the removal of inactive, complete jobs)
               refreshed-jobs (<! refreshed-jobs-ch)]
@@ -541,7 +541,7 @@
   (->ClearProgress))
 
 (defn ^{:added "0.1.4"}
-  set-prefix
+set-prefix
   "Returns an update value for a job to set its prefix.
 
   The prefix typically is used to provide an identity to a job.
