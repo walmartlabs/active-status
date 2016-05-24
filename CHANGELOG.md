@@ -1,3 +1,11 @@
+## 0.1.6 - 24 May 2016
+
+Changed the terminal capability codes used for cursor movement to be more
+standard, matching more terminals across more operating systems.
+
+Changed the `status-board` function to return a system map with key
+:status-board, rather than just the component itself. 
+
 ## 0.1.5 - 8 Apr 2016
 
 Lock `*out*` during output. This helps to ensure that output from the console does not

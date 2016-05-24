@@ -99,6 +99,18 @@ to instantiate the console status board, or the minimal status board.
 See [com.stuartsierra/component](https://github.com/stuartsierra/component) 
 and [io.aviso/config](https://github.com/AvisoNovate/config).
 
+### Execution
+
+active-status is intended for long running jobs.
+Typically, the deployment model is an Uberjar.
+For best execution, use `nohup` and redirect input and output:
+
+    java -jar xxx-standalone.jar ... > console.out 2> console.err < /dev/null & tail -f console.out
+    
+This will start the application running, and it will continue to completion,
+even after a logout.
+Output is sent to a file, which can be `tail`ed to see current status.
+
 
 ### Future Directions
 
