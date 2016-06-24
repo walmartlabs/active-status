@@ -26,7 +26,6 @@
 ;;
 ;; :target - target value to reach
 ;; :current - current value towards target
-;; :created - time when progress model first created (used to compute ETA)
 
 
 (defprotocol JobUpdater
@@ -37,8 +36,7 @@
   JobUpdater
   (update-job [_ job]
     (assoc job :progress {:current 0
-                          :target  target
-                          :created (millis)})))
+                          :target  target})))
 
 (defrecord ProgressTick [amount]
 
@@ -104,26 +102,37 @@
 (def ^:private bars (apply str (repeat bar-length "=")))
 (def ^:private spaces (apply str (repeat bar-length " ")))
 
-(defn- format-progress
-  [updated {:keys [current target created]}]
-  (let [displayable      (and (pos? target) (pos? current))
-        completed-ratio  (if displayable (/ current target) 0)
-        completed-length (int (* completed-ratio bar-length))]
+(defn bar
+  "Returns a string representation of a bar, used when formatting progress.
+  The bar length (number of `=` or ` ` between brackets) is 30.
+
+  The ratio should be between 0 (inclusive) and 1 (non-inclusive).
+
+  Ex:
+      (bar 0.64) ==> \"[===================           ]\""
+  {:added "0.1.7"}
+  [completed-ratio]
+  (let [completed-length (int (* completed-ratio bar-length))]
     (str "["
          (subs bars 0 completed-length)
          (subs spaces 0 (- bar-length completed-length))
-         "]"
+         "]")))
+
+(defn default-format-progress
+  "Default function used for formatting progress; uses the :current and :target keys of the
+  progress map."
+  {:added "0.1.7"}
+  [progress]
+  (let [{:keys [current target]} progress
+        displayable      (and (pos? target) (pos? current))
+        completed-ratio  (if displayable (/ current target) 0)]
+    (str " "
+         (bar completed-ratio)
          (when displayable
-           (let [elapsed          (- updated created)
-                 remaining-millis (- (/ elapsed completed-ratio) elapsed)
-                 seconds          (mod (int (/ remaining-millis 1000)) 60)
-                 minutes          (int (/ remaining-millis 60000))]
-             (format " ETA: %02d:%02d %3d%% %d/%d"
-                     minutes
-                     seconds
-                     (int (* 100 completed-ratio))
-                     current
-                     target))))))
+           (format " %3d%% - %d/%d"
+                   (int (* 100 completed-ratio))
+                   current
+                   target)))))
 
 (def ^:dynamic ^{:added "0.1.2"} *terminal-type*
   "The terminal type used when invoking the [[tput]].  Defaults to the value of the
@@ -156,7 +165,7 @@
       (tput* args))))
 
 (defn- refresh-status-board
-  [progress-column old-jobs new-jobs]
+  [old-jobs new-jobs]
   (locking [*out*]
     (doseq [[job-id job] new-jobs
             :when (not= job (get old-jobs job-id))
@@ -178,9 +187,7 @@
                   prefix                                    ; when non-nil, you want a separator character
                   summary
                   (when progress
-                    (str (tput "hpa" progress-column)
-                         " "
-                         (format-progress updated progress)))
+                    (default-format-progress progress))
                   ansi/reset-font
                   (tput "rc")                               ; restore cursor position
                   (tput "cvvis")                            ; make cursor visible
@@ -306,10 +313,10 @@
   are removed and the resulting map conveyed on the returned channel."
   [configuration in-ch]
   (let [out-ch (chan)
-        {:keys [progress-column]} configuration]
+        {:keys []} configuration]
     (go-loop [prior-jobs {}]
       (when-let [new-jobs (<! in-ch)]
-        (refresh-status-board progress-column prior-jobs new-jobs)
+        (refresh-status-board  prior-jobs new-jobs)
         (let [new-jobs' (medley/remove-vals #(and (:complete %)
                                                   (not (:active %)))
                                             new-jobs)]
@@ -325,7 +332,6 @@
               (millis)))
     (assoc job :active false)
     job))
-
 
 (defn- next-timeout
   "Create the next timeout after a refresh. This is nil when there are no
@@ -396,14 +402,9 @@
   : Milliseconds after which the status dims from bold to normal; defaults to 1000 ms.
 
   :update-millis
-  : Interval at which the status board will be updated; default to 100ms.
-
-  :progress-column
-  : Column in which to display progress (which may truncate the job's summary);
-    defaults to 55."
+  : Interval at which the status board will be updated; default to 100ms."
   {:dim-after-millis 1000
-   :update-millis    100
-   :progress-column  55})
+   :update-millis    100})
 
 (defn console-status-board
   "Creates a new status board suitable for use in a command-line application.
@@ -491,7 +492,7 @@
   : The initial status for the job (:normal, :success, :warning, :error).
 
   :pinned
-  : If true, then any update to the job will move it to the first line, shifting others up.
+  : If true, then any update to the job will move it to the first (bottommost) line, shifting others up.
     You rarely want more than one pinned job."
   ([board-ch]
    (add-job board-ch nil))
