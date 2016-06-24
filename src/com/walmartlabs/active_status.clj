@@ -12,20 +12,20 @@
 
 ;; The job model:
 ;;
-;; :summary - text string to display
-;; :prefix - optional prefix string before the summary
-;; :pinned - if true, then updates to the model always move it to line 1 shifting others up
-;; :status - optional status (:normal, :warning, etc.), affects color
-;; :active - true if recently active (displayed bold), automatically cleared after a few ms
-;; :closed - true once the channel is closed
-;; :updated - millis of last update, used to determine when to clear :active
-;; :line - lines up from cursor for the job (changes when new jobs are added, or existing jobs completed)
-;; :progress - a progress model, if non-nil, progress will be displayed
+;; ::summary - text string to display
+;; ::prefix - optional prefix string before the summary
+;; ::pinned - if true, then updates to the model always move it to line 1 shifting others up
+;; ::status - optional status (:normal, :warning, etc.), affects color
+;; ::active - true if recently active (displayed bold), automatically cleared after a few ms
+;; ::closed - true once the channel is closed
+;; ::updated - millis of last update, used to determine when to clear :active
+;; ::line - lines up from cursor for the job (changes when new jobs are added, or existing jobs completed)
+;; ::progress - a progress model, if non-nil, progress will be displayed
 
 ;; A progress model:
 ;;
-;; :target - target value to reach
-;; :current - current value towards target
+;; ::target - target value to reach
+;; ::current - current value towards target
 
 
 (defprotocol JobUpdater
@@ -35,32 +35,32 @@
 (defrecord StartProgress [target]
   JobUpdater
   (update-job [_ job]
-    (assoc job :progress {:current 0
-                          :target  target})))
+    (assoc job ::progress {::current 0
+                           ::target target})))
 
 (defrecord ProgressTick [amount]
 
   JobUpdater
   (update-job [_ job]
-    (update-in job [:progress :current] + amount)))
+    (update-in job [::progress ::current] + amount)))
 
 (defrecord CompleteProgress []
 
   JobUpdater
   (update-job [_ job]
-    (assoc-in job [:progress :current] (get-in job [:progress :target]))))
+    (assoc-in job [::progress ::current] (get-in job [::progress ::target]))))
 
 (defrecord ClearProgress []
 
   JobUpdater
   (update-job [_ job]
-    (dissoc job :progress)))
+    (dissoc job ::progress)))
 
 (extend-protocol JobUpdater
 
   String
   (update-job [this job]
-    (assoc job :summary this)))
+    (assoc job ::summary this)))
 
 (def ^:private status-to-ansi
   {:warning ansi/yellow-font
@@ -71,23 +71,23 @@
 (defrecord ChangeStatus [new-status]
   JobUpdater
   (update-job [_ job]
-    (assoc job :status new-status)))
+    (assoc job ::status new-status)))
 
 (defrecord ^{:added "0.1.4"} SetPrefix [prefix]
   JobUpdater
   (update-job [_ job]
-    (assoc job :prefix prefix)))
+    (assoc job ::prefix prefix)))
 
 (defn- increment-line
   [job]
-  (update job :line inc))
+  (update job ::line inc))
 
 (defn- setup-new-job
   [jobs composite-ch job job-id]
   (println)                                                 ; Add a new line for the new job
   ;; Convert each value into a tuple of job-id and update value, and push that
   ;; value into the composite channel.
-  (let [job-ch (:channel job)]
+  (let [job-ch (::channel job)]
     (go-loop []
       (let [v (<! job-ch)]
         (>! composite-ch [job-id v])
@@ -95,8 +95,8 @@
           (recur))))
     (as-> jobs %
           (medley/map-vals increment-line %)
-          (assoc % job-id (assoc job :id job-id
-                                     :line 1)))))
+          (assoc % job-id (assoc job ::id job-id
+                                 ::line 1)))))
 
 (def ^:private bar-length 30)
 (def ^:private bars (apply str (repeat bar-length "=")))
@@ -119,11 +119,11 @@
          "]")))
 
 (defn default-format-progress
-  "Default function used for formatting progress; uses the :current and :target keys of the
+  "Default function used for formatting progress; uses the ::current and ::target keys of the
   progress map."
   {:added "0.1.7"}
   [progress]
-  (let [{:keys [current target]} progress
+  (let [{:keys [::current ::target]} progress
         displayable      (and (pos? target) (pos? current))
         completed-ratio  (if displayable (/ current target) 0)]
     (str " "
@@ -169,70 +169,76 @@
   (locking [*out*]
     (doseq [[job-id job] new-jobs
             :when (not= job (get old-jobs job-id))
-            :let [{:keys [line prefix summary active complete status updated progress]} job]]
-      (print (str (tput "civis")                            ; make cursor invisible
-                  (tput "sc")                               ; save cursor position
-                  (tput "cuu" line)                         ; cursor up
-                  (tput "hpa" 0)                            ; move to leftmost column
-                  (tput "el")                               ; clear to end-of-line
-                  (status-to-ansi status)
-                  (cond
-                    active
-                    ansi/bold-font
+            :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress]} job]]
+      (try
+        (print (str (tput "civis")                          ; make cursor invisible
+                    (tput "sc")                             ; save cursor position
+                    (tput "cuu" line)                       ; cursor up
+                    (tput "hpa" 0)                          ; move to leftmost column
+                    (tput "el")                             ; clear to end-of-line
+                    (status-to-ansi status)
+                    (cond
+                      active
+                      ansi/bold-font
 
-                    ;; Few terminals seem to support italic out of the box, alas.
-                    complete
-                    ansi/italic-font)
+                      ;; Few terminals seem to support italic out of the box, alas.
+                      complete
+                      ansi/italic-font)
 
-                  prefix                                    ; when non-nil, you want a separator character
-                  summary
-                  (when progress
-                    (default-format-progress progress))
-                  ansi/reset-font
-                  (tput "rc")                               ; restore cursor position
-                  (tput "cvvis")                            ; make cursor visible
-                  ))
+                    prefix                                  ; when non-nil, you want a separator character
+                    summary
+                    (when progress
+                      (default-format-progress progress))
+                    ansi/reset-font
+                    (tput "rc")                             ; restore cursor position
+                    (tput "cvvis")                          ; make cursor visible
+                    ))
+        (catch Throwable t
+          (throw (ex-info "Exception updating console status board."
+                          {::old-jobs old-jobs
+                           ::new-jobs new-jobs
+                           ::job job}
+                          t))))
       (flush))))
 
 (defn- move-job-up
   [jobs job-id new-line]
   (cond-let
-    [current-line (get-in jobs [job-id :line])]
+    [current-line (get-in jobs [job-id ::line])]
 
     (= new-line current-line)
     jobs
 
     (= (count jobs) new-line)
-    (medley/map-vals (fn [{:keys [id line] :as job}]
+    (medley/map-vals (fn [{:keys [::id ::line] :as job}]
                        (cond
                          (= id job-id)
-                         (assoc job :line new-line)
+                         (assoc job ::line new-line)
 
                          (< current-line line)
-                         (update job :line dec)
+                         (update job ::line dec)
 
                          :else
                          job))
                      jobs)
 
     :else
-    (medley/map-vals (fn [{:keys [id line] :as job}]
+    (medley/map-vals (fn [{:keys [::id ::line] :as job}]
                        (cond
                          (= job-id id)
                          ;; The dec accounts for the loss of the original
                          ;; line below the new line.
-                         (assoc job :line
-                                    (dec new-line))
+                         (assoc job ::line
+                                (dec new-line))
 
                          (< current-line line new-line)
-                         (update job :line dec)
+                         (update job ::line dec)
 
                          ;; Line up to the new line position
                          ;; decrement, because a lower line was "deleted"
                          ;; in the move.
                          :else
-                         job
-                         ))
+                         job))
                      jobs)))
 
 (defn- find-min-line
@@ -240,7 +246,7 @@
   (let [matching-lines (->> jobs
                             vals
                             (filter pred)
-                            (map :line))]
+                            (map ::line))]
     (when (seq matching-lines)
       (reduce min matching-lines))))
 
@@ -253,35 +259,35 @@
   Returns the new jobs map."
   [jobs job-id]
   (let [new-line (or
-                   (find-min-line jobs :complete)
+                   (find-min-line jobs ::complete)
                    ;; Or move it to the last line
                    (count jobs))]
     (-> jobs
         (update job-id
-                assoc :complete true :active true :updated (millis))
+                assoc ::complete true ::active true ::updated (millis))
         (move-job-up job-id new-line))))
 
-(def ^:private output-keys [:summary :status :progress :prefix])
+(def ^:private output-keys [::summary ::status ::progress ::prefix])
 
 (defn- adjust-if-pinned
   "Adjust the just-updated job to line 1 if necessary."
   [jobs job-pre job-id]
-  (let [{:keys [pinned line active] :as job-post} (get jobs job-id)]
+  (let [{:keys [::pinned ::line ::active] :as job-post} (get jobs job-id)]
     (if (and pinned
              active
              (not= 1 line)
              ;; Have to be selective about comparing only things that affect the
              ;; line output.  :updated, :line, maybe :active are always changing
-             ;; (and :channel never does).
+             ;; (and ::channel never does).
              (not= (select-keys job-pre output-keys)
                    (select-keys job-post output-keys)))
       (as-> jobs %
             (medley/map-vals (fn [j]
                                (if (< (:line j) line)
-                                 (update j :line inc)
+                                 (update j ::line inc)
                                  j))
                              %)
-            (assoc % job-id (assoc job-post :line 1)))
+            (assoc % job-id (assoc job-post ::line 1)))
       jobs)))
 
 (defn- update-jobs-status
@@ -294,15 +300,15 @@
             (update job-id
                     (fn [job]
                       (assoc (update-job value job)
-                        :active true
-                        :updated (millis))))
+                             ::active true
+                             ::updated (millis))))
             (adjust-if-pinned job-pre job-id)))
       (complete-job jobs job-id))
     (catch Throwable t
       (throw (ex-info "Failure updating job status."
-                      {:jobs         jobs
-                       :job-id       job-id
-                       :update-value value}
+                      {::jobs jobs
+                       ::job-id job-id
+                       ::update-value value}
                       t)))))
 
 (defn- start-refresh-process
@@ -316,9 +322,9 @@
         {:keys []} configuration]
     (go-loop [prior-jobs {}]
       (when-let [new-jobs (<! in-ch)]
-        (refresh-status-board  prior-jobs new-jobs)
-        (let [new-jobs' (medley/remove-vals #(and (:complete %)
-                                                  (not (:active %)))
+        (refresh-status-board prior-jobs new-jobs)
+        (let [new-jobs' (medley/remove-vals #(and (::complete %)
+                                                  (not (::active %)))
                                             new-jobs)]
           (>! out-ch new-jobs')
           ;; And back until the next jobs update is delivered
@@ -327,10 +333,10 @@
 
 (defn- apply-dim
   [dim-after-millis job]
-  (if (and (:active job)
-           (< (+ (:updated job) dim-after-millis)
+  (if (and (::active job)
+           (< (+ (::updated job) dim-after-millis)
               (millis)))
-    (assoc job :active false)
+    (assoc job ::active false)
     job))
 
 (defn- next-timeout
@@ -340,7 +346,7 @@
   [jobs update-millis]
   (when (->> jobs
              vals
-             (some :active))
+             (some ::active))
     (timeout update-millis)))
 
 (defn- start-process
@@ -367,8 +373,8 @@
                    interval-ch)
             ;; Finalize the output and exit the go loop:
             (->> jobs
-                 (medley/map-vals #(assoc % :active false
-                                            :complete true))
+                 (medley/map-vals #(assoc % ::active false
+                                          ::complete true))
                  (>! refresh-ch))))
 
         ;; We try to keep interval-ch as nil when there's no
@@ -378,8 +384,8 @@
                                (medley/map-vals #(apply-dim dim-after-millis %) jobs)
                                (catch Throwable t
                                  (throw (ex-info "apply-dim failed"
-                                                 {:jobs          jobs
-                                                  :configuration configuration}
+                                                 {::jobs jobs
+                                                  ::configuration configuration}
                                                  t))))
               ;; Ask it to refresh the output
               _              (>! refresh-ch jobs')
@@ -501,7 +507,7 @@
    (let [ch (chan 3)]
      (put! board-ch (-> options
                         (select-keys [:status :pinned])
-                        (assoc :channel ch)))
+                        (assoc ::channel ch)))
      ch)))
 
 (defn change-status

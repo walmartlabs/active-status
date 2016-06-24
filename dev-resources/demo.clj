@@ -57,7 +57,7 @@
 
 (defn reload []
   (load-file "src/com/walmartlabs/active_status.clj")
-  (load-file "dev-resources/user.clj")
+  (load-file "dev-resources/demo.clj")
   (println "Reloaded."))
 
 
