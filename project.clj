@@ -13,6 +13,6 @@
   :aliases {"release" ["do"
                        "clean,"
                        "deploy" "clojars"]}
-  :codox {:source-uri "https://github.com/walmartlabs/active-status/master/{filepath}#L{line}"
+  :codox {:source-uri "https://github.com/walmartlabs/active-status/blob/master/{filepath}#L{line}"
           :metadata   {:doc/format :markdown}}
   :plugins [[lein-codox "0.9.3"]])

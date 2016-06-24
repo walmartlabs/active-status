@@ -126,8 +126,8 @@
                      target))))))
 
 (def ^:dynamic ^{:added "0.1.2"} *terminal-type*
-  "The terminal type used when invoking `tput`.  Defaults to the value of the
-  TERM environment variable or, if not set, the explicit value 'term'."
+  "The terminal type used when invoking the [[tput]].  Defaults to the value of the
+  `TERM` environment variable or, if not set, the explicit value `xterm`."
   (or (System/getenv "TERM") "xterm"))
 
 (defn- transmute-out
@@ -148,8 +148,9 @@
                 err)
         ""))))
 
-(def ^:private tput
-  "Invoke tput in a shell, capturing the result.  Memoized."
+(def ^{:added "0.1.7"}
+  tput
+  "Invokes the `tput` command in a shell, passing it all arguments passed to this function."
   (memoize
     (fn [& args]
       (tput* args))))
@@ -540,8 +541,7 @@
   []
   (->ClearProgress))
 
-(defn ^{:added "0.1.4"}
-set-prefix
+(defn set-prefix
   "Returns an update value for a job to set its prefix.
 
   The prefix typically is used to provide an identity to a job.
@@ -549,5 +549,6 @@ set-prefix
   The prefix should typically end with a space, to separate it from the job's summary text.
 
   The prefix may be set to nil to remove it."
+  {:added "0.1.4"}
   [prefix]
   (->SetPrefix prefix))

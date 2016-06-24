@@ -1,3 +1,7 @@
+## 0.1.7 - UNRELEASED
+
+The `tput` function is now part of the public API.
+
 ## 0.1.6 - 24 May 2016
 
 Changed the terminal capability codes used for cursor movement to be more
