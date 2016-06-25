@@ -21,6 +21,7 @@
 ;; ::updated - millis of last update, used to determine when to clear :active
 ;; ::line - lines up from cursor for the job (changes when new jobs are added, or existing jobs completed)
 ;; ::progress - a progress model, if non-nil, progress will be displayed
+;; ::progress-formatter - formats the progress model, when present (optional)
 
 ;; A progress model:
 ;;
@@ -75,12 +76,15 @@
 
 (defn bar
   "Returns a string representation of a bar, used when formatting progress.
-  The bar length (number of `=` or ` ` between brackets) is 30.
+  The bar length (number of `=` or spaces between brackets) is 30.
 
   The ratio should be between 0 (inclusive) and 1 (non-inclusive).
 
   Ex:
-      (bar 0.64) ==> \"[===================           ]\""
+
+      (bar 0.64) ==> \"[===================           ]\"
+
+  "
   {:added "0.1.7"}
   [completed-ratio]
   (let [completed-length (int (* completed-ratio bar-length))]
@@ -89,7 +93,7 @@
          (subs spaces 0 (- bar-length completed-length))
          "]")))
 
-(defn default-format-progress
+(defn default-progress-formatter
   "Default function used for formatting progress; uses the ::current and ::target keys of the
   progress map."
   {:added "0.1.7"}
@@ -136,11 +140,13 @@
       (tput* args))))
 
 (defn- refresh-status-board
-  [old-jobs new-jobs]
+  [default-progress-formatter old-jobs new-jobs]
   (locking [*out*]
     (doseq [[job-id job] new-jobs
             :when (not= job (get old-jobs job-id))
-            :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress]} job]]
+            :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress
+                          ::progress-formatter]
+                   :or {::progress-formatter default-progress-formatter}} job]]
       (try
         (print (str (tput "civis")                          ; make cursor invisible
                     (tput "sc")                             ; save cursor position
@@ -159,7 +165,7 @@
                     prefix                                  ; when non-nil, you want a separator character
                     summary
                     (when progress
-                      (default-format-progress progress))
+                      (progress-formatter progress))
                     ansi/reset-font
                     (tput "rc")                             ; restore cursor position
                     (tput "cvvis")                          ; make cursor visible
@@ -238,7 +244,7 @@
                 assoc ::complete true ::active true ::updated (millis))
         (move-job-up job-id new-line))))
 
-(def ^:private output-keys [::summary ::status ::progress ::prefix])
+(def ^:private output-keys [::summary ::status ::progress ::progress-formatter ::prefix])
 
 (defn- adjust-if-pinned
   "Adjust the just-updated job to line 1 if necessary."
@@ -290,10 +296,10 @@
   are removed and the resulting map conveyed on the returned channel."
   [configuration in-ch]
   (let [out-ch (chan)
-        {:keys []} configuration]
+        {:keys [progress-formatter]} configuration]
     (go-loop [prior-jobs {}]
       (when-let [new-jobs (<! in-ch)]
-        (refresh-status-board prior-jobs new-jobs)
+        (refresh-status-board progress-formatter prior-jobs new-jobs)
         (let [new-jobs' (medley/remove-vals #(and (::complete %)
                                                   (not (::active %)))
                                             new-jobs)]
@@ -379,9 +385,14 @@
   : Milliseconds after which the status dims from bold to normal; defaults to 1000 ms.
 
   :update-millis
-  : Interval at which the status board will be updated; default to 100ms."
+  : Interval at which the status board will be updated; default to 100ms.
+
+  :progress-formatter
+  : Function that formats the ::progress data of a job, if present.
+    Defaults to [[default-progress-formatter]]."
   {:dim-after-millis 1000
-   :update-millis    100})
+   :update-millis 100
+   :progress-formatter default-progress-formatter})
 
 (defn console-status-board
   "Creates a new status board suitable for use in a command-line application.
@@ -537,4 +548,11 @@
   [prefix]
   ;; Keep as a record, for use by the minimal status board
   (->SetPrefix prefix))
+
+(defn set-progress-formatter
+  "Sets the progress formatter for the job to the provided function, or nil
+  to return to the default progress formatter."
+  {:added "0.1.7"}
+  [formatter]
+  (job-updater #(assoc % ::progress-formatter formatter)))
 

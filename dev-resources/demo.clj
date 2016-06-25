@@ -1,7 +1,7 @@
 (ns demo
-  (:use com.walmartlabs.active-status
-        clojure.repl)
-  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!]])
+  (:use clojure.repl)
+  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!]]
+            [com.walmartlabs.active-status :refer :all :as as])
   (:import (java.util UUID)))
 
 (defn- job
@@ -66,6 +66,9 @@
   (let [job (add-job t)]
     (go
       (>! job message)
+      ;; Uncomment to test per-job progress formatting:
+      #_ (>! job (set-progress-formatter (fn [{:keys [::as/current ::as/target]}]
+                                        (str " " current "/" target))))
       (>! job (start-progress target))
 
       (dotimes [_ target]

@@ -2,6 +2,10 @@
 
 The `tput` function is now part of the public API.
 
+Progress reporting has been changed around considerably, and it
+is now possible to override the default way progress is formatted,
+or override progress formatting for an individual job.
+
 ## 0.1.6 - 24 May 2016
 
 Changed the terminal capability codes used for cursor movement to be more
