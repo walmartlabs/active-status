@@ -1,4 +1,4 @@
-## 0.1.7 - UNRELEASED
+## 0.1.7 - 24 Jun 2016
 
 The `tput` function is now part of the public API.
 
