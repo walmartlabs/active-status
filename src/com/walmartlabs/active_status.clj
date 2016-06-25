@@ -32,30 +32,6 @@
   "A protocol that indicates how a particular job is updated by a particular type."
   (update-job [this job]))
 
-(defrecord StartProgress [target]
-  JobUpdater
-  (update-job [_ job]
-    (assoc job ::progress {::current 0
-                           ::target target})))
-
-(defrecord ProgressTick [amount]
-
-  JobUpdater
-  (update-job [_ job]
-    (update-in job [::progress ::current] + amount)))
-
-(defrecord CompleteProgress []
-
-  JobUpdater
-  (update-job [_ job]
-    (assoc-in job [::progress ::current] (get-in job [::progress ::target]))))
-
-(defrecord ClearProgress []
-
-  JobUpdater
-  (update-job [_ job]
-    (dissoc job ::progress)))
-
 (extend-protocol JobUpdater
 
   String
@@ -67,11 +43,6 @@
    :normal  nil
    :error   ansi/red-font
    :success ansi/green-font})
-
-(defrecord ChangeStatus [new-status]
-  JobUpdater
-  (update-job [_ job]
-    (assoc job ::status new-status)))
 
 (defrecord ^{:added "0.1.4"} SetPrefix [prefix]
   JobUpdater
@@ -510,6 +481,12 @@
                         (assoc ::channel ch)))
      ch)))
 
+(defn- job-updater
+  [f]
+  (reify JobUpdater
+    (update-job [_ job]
+      (f job))))
+
 (defn change-status
   "Returns a job update value that changes the status of the job (this does not affect
   its summary message or other properties).
@@ -519,20 +496,20 @@
   value
   : One of: :normal (the default), :success, :warning, :error."
   [value]
-  (->ChangeStatus value))
+  (job-updater #(assoc % ::status value)))
 
 (defn start-progress
   "Returns a job update value that starts progress torwards the indicated total.
 
   The job's status line will include a progress bar."
   [target]
-  (->StartProgress target))
+  (job-updater #(assoc % ::progress {::current 0 ::target target})))
 
 (defn progress-tick
   "Returns a job update value for a job to increment its progress. The default amount is 1."
   ([] (progress-tick 1))
   ([amount]
-   (->ProgressTick amount)))
+   (job-updater #(update-in % [::progress ::current] + amount))))
 
 (defn complete-progress
   "Returns a job update value for a job to complete its progress (setting its current
@@ -541,12 +518,12 @@
   This is especially useful given that, on a very busy system, the occasional job update
   value may be discarded."
   []
-  (->CompleteProgress))
+  (job-updater #(assoc-in % [::progress ::current] (get-in % [::progress ::target]))))
 
 (defn clear-progress
   "Returns an update value for a job to clear the progress entirely, removing the progress bar."
   []
-  (->ClearProgress))
+  (job-updater #(dissoc % ::progress)))
 
 (defn set-prefix
   "Returns an update value for a job to set its prefix.
@@ -558,4 +535,6 @@
   The prefix may be set to nil to remove it."
   {:added "0.1.4"}
   [prefix]
+  ;; Keep as a record, for use by the minimal status board
   (->SetPrefix prefix))
+
