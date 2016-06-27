@@ -61,10 +61,11 @@ text).
 This largely eliminates the use of the library on Windows platforms.
 
 In addition, the library uses italic font for completed jobs ... but even on OS X, Terminal.app
-supports italics out of the box; this [post](https://alexpearce.me/2014/05/italics-in-iterm2-vim-tmux/)
+does not support italics out of the box; this [post](https://alexpearce.me/2014/05/italics-in-iterm2-vim-tmux/)
 explains how to setup italics. 
 
-The latest version of iTerm2.app does support italics.
+[iTerm2](https://iterm2.com/) version 3 does support italics.
+It's free and awesome, you should be using this.
 
 #### Terminal width
 
@@ -90,7 +91,8 @@ In Terminal.app, the default terminfo is 'ansi'; the library works correctly onl
 
 IntelliJ Terminal (IntelliJ 15, OS X) seems to work fine.
 
-Cursive REPL (Intellij 15, OS X) currently quite broken, alas.  But, then again, REPL oriented development and the
+Cursive REPL (Intellij 15, OS X) is currently quite broken, alas.
+But, then again, REPL oriented development and the
 status tracker are not a good mix (see the "other output" section above).
 
 ### Component
