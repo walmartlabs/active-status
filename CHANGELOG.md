@@ -19,7 +19,7 @@ Changed the `status-board` function to return a system map with key
 Lock `*out*` during output. This helps to ensure that output from the console does not
 interleave with exception output written to the console.
 
-## 0.1.4 - 11 May 2016
+## 0.1.4 - 11 Mar 2016
 
 It is now possible to set a prefix for a job; typically used to identify the job (much like a thread name).
 
