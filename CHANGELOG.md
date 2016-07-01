@@ -1,3 +1,9 @@
+## 0.1.8 - UNRELEASED
+
+The new `with-output-redirected` macro allows standard out and
+standard error to be redirected to a pair of files, preventing
+unwanted interference with the status board.
+
 ## 0.1.7 - 24 Jun 2016
 
 The `tput` function is now part of the public API.

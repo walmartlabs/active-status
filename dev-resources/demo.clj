@@ -2,7 +2,7 @@
   (:use clojure.repl)
   (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!]]
             [com.walmartlabs.active-status :refer :all :as as])
-  (:import (java.util UUID)))
+  (:import [java.util UUID]))
 
 (defn- job
   ([ch name speed count]
@@ -86,17 +86,22 @@
     (go
       (>! job (str message " ..."))
       (<! (timeout delay))
+      #_ (when (.contains message "speed")
+        (binding [*out* *err*] (println "Turbine go boom!"))
+        (throw (RuntimeException. "Turbine failure.")))
       (>! job (str message " \u2713"))
       (>! job (change-status :success))
+      #_ (println (Date.) "job" message "- completed")
       (<! (timeout delay))
       (close! job))))
 
 (defn start-batmobile
   ([]
    (let [t (console-status-board)]
-     (<!! (start-batmobile t))
-     (close! t)
-     (Thread/sleep 100)))
+     (with-output-redirected "batmobile"
+       (<!! (start-batmobile t))
+       (close! t)
+       (Thread/sleep 100))))
   ([t]
     (go
       (let [channels [(simple-job t "Atomic turbines to speed" 2000)

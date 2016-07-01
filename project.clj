@@ -8,7 +8,7 @@
                  [org.clojure/core.async "0.2.385"]
                  [medley "0.8.2"]
                  [io.aviso/toolchest "0.1.4"]
-                 [io.aviso/pretty "0.1.26"]
+                 [io.aviso/pretty "0.1.27"]
                  [io.aviso/config "0.1.13" :optional true]]
   :aliases {"release" ["do"
                        "clean,"
