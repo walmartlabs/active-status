@@ -79,6 +79,9 @@ so either of these cases will cause job output to be printed on the wrong lines 
 This is compounded by the fact that job lines are only updated when the underlying data is changed (by sending an 
 update to the job's channel).
 
+Starting in 0.1.8, the `with-output-redirected` macro can usually, but not always, prevent unwanted output from
+interfering with the status board.
+
 **TL;DR**: Don't write any output while the status board is running.
 
 ### Compatibility
