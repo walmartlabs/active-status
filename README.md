@@ -13,8 +13,6 @@ A simple way to let asynchronous jobs report their status and progress.
 
 ![batman demo](images/active-progress-batman-demo.gif)
 
-*Note: progress reporting has changed slightly since this image was created.*
-
 Here's a more realistic example, from [db-migrate-example](https://github.com/hlship/db-migrate-example):
 
 ![database migration demo](images/db-migrate.gif)
