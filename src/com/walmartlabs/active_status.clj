@@ -72,28 +72,29 @@
           (assoc % job-id (assoc job ::id job-id
                                  ::line 1)))))
 
-(def ^:private bar-length 30)
-(def ^:private bars (apply str (repeat bar-length "=")))
-(def ^:private spaces (apply str (repeat bar-length " ")))
+(def ^:private char-bar
+  (memoize (fn [c n]
+             (let [s (StringBuffer. (int n))]
+               (dotimes [_ n]
+                 (.append s c))
+               (str s)))))
+
 
 (defn bar
   "Returns a string representation of a bar, used when formatting progress.
-  The bar length (number of `=` or spaces between brackets) is 30.
+  The default bar length (number of characters) is 30.
 
-  The ratio should be between 0 (inclusive) and 1 (non-inclusive).
+  The bar is generated using ANSI block characters.
 
-  Ex:
-
-      (bar 0.64) ==> \"[===================           ]\"
-
-  "
+  The ratio should be between 0 (inclusive) and 1 (non-inclusive)."
   {:added "0.1.7"}
-  [completed-ratio]
-  (let [completed-length (int (* completed-ratio bar-length))]
-    (str "["
-         (subs bars 0 completed-length)
-         (subs spaces 0 (- bar-length completed-length))
-         "]")))
+  ([completed-ratio]
+    (bar 30 completed-ratio))
+  ([bar-length completed-ratio]
+   (let [completed-length (int (* completed-ratio bar-length))]
+     ;; https://en.wikipedia.org/wiki/Block_Elements
+     (str (char-bar \u2593 completed-length)
+          (char-bar \u2591 (- bar-length completed-length))))))
 
 (defn default-progress-formatter
   "Default function used for formatting progress; uses the ::current and ::target keys of the
@@ -166,6 +167,7 @@
 
                     prefix                                  ; when non-nil, you want a separator character
                     summary
+                    ansi/csi 23 ansi/sgr
                     (when progress
                       (progress-formatter progress))
                     ansi/reset-font

@@ -4,6 +4,9 @@ The new `with-output-redirected` macro allows standard out and
 standard error to be redirected to a pair of files, preventing
 unwanted interference with the status board.
 
+The formatting of progress bars has changed to use simple
+Unicode block characters.
+
 ## 0.1.7 - 24 Jun 2016
 
 The `tput` function is now part of the public API.
