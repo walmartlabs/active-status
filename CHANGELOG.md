@@ -1,4 +1,4 @@
-## 0.1.8 - UNRELEASED
+## 0.1.8 - 1 Jul 2016
 
 The new `with-output-redirected` macro allows standard out and
 standard error to be redirected to a pair of files, preventing
