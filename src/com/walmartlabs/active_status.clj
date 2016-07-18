@@ -148,7 +148,7 @@
             :when (not= job (get old-jobs job-id))
             :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress
                           ::progress-formatter]
-                   :or {::progress-formatter default-progress-formatter}} job]]
+                   :or {progress-formatter default-progress-formatter}} job]]
       (try
         (print (str (tput "civis")                          ; make cursor invisible
                     (tput "sc")                             ; save cursor position

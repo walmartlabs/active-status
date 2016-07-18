@@ -4,10 +4,10 @@
   :license {:name "Apache Sofware License 2.0"
             :url  "http://www.apache.org/licenses/LICENSE-2.0.html"}
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha10"]
                  [org.clojure/core.async "0.2.385"]
                  [io.aviso/pretty "0.1.28"]
-                 [io.aviso/config "0.1.13" :optional true]]
+                 [io.aviso/config "0.2.0" :optional true]]
   :aliases {"release" ["do"
                        "clean,"
                        "deploy" "clojars"]}

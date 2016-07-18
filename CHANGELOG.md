@@ -1,6 +1,11 @@
-## 0.1.9 - UNRELEASED
+## 0.1.9 - 18 Jul 2016
+
+Update to active-status 0.2.0, which means (currently alpha)
+Clojure 1.9.
 
 Remove some other external dependencies.
+
+Fixed a bug that broken the tool when using Clojure 1.9.
 
 ## 0.1.8 - 1 Jul 2016
 

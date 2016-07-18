@@ -6,7 +6,7 @@
             [com.stuartsierra.component :as component]
             [com.walmartlabs.active-status.minimal-board :as minimal]
             [clojure.core.async :refer [close!]]
-            [schema.core :as s]))
+            [clojure.spec :as s]))
 
 (defprotocol StatusBoard
   "A component for managing the creation and lifecycle of a status board.
@@ -18,8 +18,8 @@
     [component options]
     "Returns a channel used to send job updates to the status board."))
 
-(s/defschema StatusBoardConfig
-  {:mode (s/enum :console :minimal)})
+(s/def ::mode #{:console :minimal})
+(s/def ::config (s/keys :req-un [::mode]))
 
 (defrecord StatusBoardComponent [board-ch mode]
 
@@ -60,4 +60,4 @@
   []
   (component/system-map
     :status-board (-> (map->StatusBoardComponent {})
-                      (config/with-config-schema :status-board StatusBoardConfig))))
+                      (config/with-config-spec :status-board ::config))))
