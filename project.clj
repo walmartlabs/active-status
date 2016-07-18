@@ -1,14 +1,12 @@
-(defproject walmartlabs/active-status "0.1.8"
-  :description "Present status of mulitple 'jobs' in a command line tool, using ANSI escape codes"
+(defproject walmartlabs/active-status "0.1.9"
+  :description "Present status of mulitple 'jobs' in a command line tool, using terminal capability codes"
   :url "https://github.com/walmartlabs/active-status"
   :license {:name "Apache Sofware License 2.0"
             :url  "http://www.apache.org/licenses/LICENSE-2.0.html"}
 
-  :dependencies [[org.clojure/clojure "1.7.0"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.385"]
-                 [medley "0.8.2"]
-                 [io.aviso/toolchest "0.1.4"]
-                 [io.aviso/pretty "0.1.27"]
+                 [io.aviso/pretty "0.1.28"]
                  [io.aviso/config "0.1.13" :optional true]]
   :aliases {"release" ["do"
                        "clean,"

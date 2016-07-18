@@ -1,3 +1,7 @@
+## 0.1.9 - UNRELEASED
+
+Remove some other external dependencies.
+
 ## 0.1.8 - 1 Jul 2016
 
 The new `with-output-redirected` macro allows standard out and

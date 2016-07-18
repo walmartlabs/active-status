@@ -1,12 +1,11 @@
 (ns com.walmartlabs.active-status
   "Present asynchronous status of multiple concurrent jobs within a command-line application."
   (:require [clojure.core.async :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout]]
-            [io.aviso.toolchest.macros :refer [cond-let]]
-            [medley.core :as medley]
             [clojure.java.shell :refer [sh]]
             [clojure.string :as str]
             [io.aviso.ansi :as ansi]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [com.walmartlabs.active-status.internal :refer [map-vals remove-vals]])
   (:import (java.util.concurrent.atomic AtomicInteger)
            [java.io PrintStream]))
 
@@ -68,7 +67,7 @@
         (when v
           (recur))))
     (as-> jobs %
-          (medley/map-vals increment-line %)
+          (map-vals increment-line %)
           (assoc % job-id (assoc job ::id job-id
                                  ::line 1)))))
 
@@ -184,43 +183,43 @@
 
 (defn- move-job-up
   [jobs job-id new-line]
-  (cond-let
-    [current-line (get-in jobs [job-id ::line])]
+  (let [current-line (get-in jobs [job-id ::line])]
+    (cond
 
-    (= new-line current-line)
-    jobs
+      (= new-line current-line)
+      jobs
 
-    (= (count jobs) new-line)
-    (medley/map-vals (fn [{:keys [::id ::line] :as job}]
-                       (cond
-                         (= id job-id)
-                         (assoc job ::line new-line)
+      (= (count jobs) new-line)
+      (map-vals (fn [{:keys [::id ::line] :as job}]
+                  (cond
+                    (= id job-id)
+                    (assoc job ::line new-line)
 
-                         (< current-line line)
-                         (update job ::line dec)
+                    (< current-line line)
+                    (update job ::line dec)
 
-                         :else
-                         job))
-                     jobs)
+                    :else
+                    job))
+                jobs)
 
-    :else
-    (medley/map-vals (fn [{:keys [::id ::line] :as job}]
-                       (cond
-                         (= job-id id)
-                         ;; The dec accounts for the loss of the original
-                         ;; line below the new line.
-                         (assoc job ::line
-                                (dec new-line))
+      :else
+      (map-vals (fn [{:keys [::id ::line] :as job}]
+                  (cond
+                    (= job-id id)
+                    ;; The dec accounts for the loss of the original
+                    ;; line below the new line.
+                    (assoc job ::line
+                           (dec new-line))
 
-                         (< current-line line new-line)
-                         (update job ::line dec)
+                    (< current-line line new-line)
+                    (update job ::line dec)
 
-                         ;; Line up to the new line position
-                         ;; decrement, because a lower line was "deleted"
-                         ;; in the move.
-                         :else
-                         job))
-                     jobs)))
+                    ;; Line up to the new line position
+                    ;; decrement, because a lower line was "deleted"
+                    ;; in the move.
+                    :else
+                    job))
+                jobs))))
 
 (defn- find-min-line
   [jobs pred]
@@ -263,11 +262,11 @@
              (not= (select-keys job-pre output-keys)
                    (select-keys job-post output-keys)))
       (as-> jobs %
-            (medley/map-vals (fn [j]
+            (map-vals (fn [j]
                                (if (< (:line j) line)
                                  (update j ::line inc)
                                  j))
-                             %)
+                      %)
             (assoc % job-id (assoc job-post ::line 1)))
       jobs)))
 
@@ -304,9 +303,9 @@
     (go-loop [prior-jobs {}]
       (when-let [new-jobs (<! in-ch)]
         (refresh-status-board progress-formatter prior-jobs new-jobs)
-        (let [new-jobs' (medley/remove-vals #(and (::complete %)
-                                                  (not (::active %)))
-                                            new-jobs)]
+        (let [new-jobs' (remove-vals #(and (::complete %)
+                                           (not (::active %)))
+                                     new-jobs)]
           (>! out-ch new-jobs')
           ;; And back until the next jobs update is delivered
           (recur new-jobs'))))
@@ -354,15 +353,15 @@
                    interval-ch)
             ;; Finalize the output and exit the go loop:
             (->> jobs
-                 (medley/map-vals #(assoc % ::active false
-                                          ::complete true))
+                 (map-vals #(assoc % ::active false
+                                   ::complete true))
                  (>! refresh-ch))))
 
         ;; We try to keep interval-ch as nil when there's no
         ;; need for an update.
         (or interval-ch forever-timeout-ch)
         (let [jobs'          (try
-                               (medley/map-vals #(apply-dim dim-after-millis %) jobs)
+                               (map-vals #(apply-dim dim-after-millis %) jobs)
                                (catch Throwable t
                                  (throw (ex-info "apply-dim failed"
                                                  {::jobs jobs
