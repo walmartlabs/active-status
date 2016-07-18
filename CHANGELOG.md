@@ -5,7 +5,7 @@ Clojure 1.9.
 
 Remove some other external dependencies.
 
-Fixed a bug that broken the tool when using Clojure 1.9.
+Fixed a bug that broke the console when using Clojure 1.9.
 
 ## 0.1.8 - 1 Jul 2016
 
