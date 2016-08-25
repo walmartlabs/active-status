@@ -171,7 +171,7 @@
                       (progress-formatter progress))
                     ansi/reset-font
                     (tput "rc")                             ; restore cursor position
-                    (tput "cvvis")                          ; make cursor visible
+                    (tput "cnorm")                          ; make cursor visible
                     ))
         (catch Throwable t
           (throw (ex-info "Exception updating console status board."
