@@ -1,4 +1,4 @@
-(defproject walmartlabs/active-status "0.1.9"
+(defproject walmartlabs/active-status "0.1.10"
   :description "Present status of mulitple 'jobs' in a command line tool, using terminal capability codes"
   :url "https://github.com/walmartlabs/active-status"
   :license {:name "Apache Sofware License 2.0"
