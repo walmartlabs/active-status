@@ -1,4 +1,4 @@
-## 0.1.10 - UNRELEASED
+## 0.1.10 - 26 Aug 2016
 
 Fixed the minimal-status-board, which was completely broken.
 
