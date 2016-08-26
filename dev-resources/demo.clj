@@ -1,6 +1,7 @@
 (ns demo
   (:use clojure.repl)
   (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!]]
+            [com.walmartlabs.active-status.minimal-board :refer [minimal-status-board]]
             [com.walmartlabs.active-status :refer :all :as as])
   (:import [java.util UUID]))
 
@@ -27,33 +28,35 @@
        (>! ch (complete-progress)))
      (close! ch))))
 
-(defn demo []
-  (let [t (console-status-board)
-        j (add-job t {:status :success :pinned true})]
-    (>!! j "adding one, two, three")
-    (job (add-job t) "one" 100 50)
-    (job (add-job t) "two" 500 100 :warning true)
-    (job (add-job t) "three" 250 10 :normal true)
-    (>!! j "first sleep")
-    (Thread/sleep 3000)
-    (>!! j "adding four, five")
-    (job (add-job t) "four" 250 10 :success false)
-    (job (add-job t) "five" 2000 30)
-    (>!! j "second sleep")
-    (Thread/sleep 3000)
-    (job (add-job t) "six" 250 100 :error true)
-    (job (add-job t) "seven" 10 1000 :normal true)
-    (Thread/sleep 2000)
-    (>!! j "final (long) sleep")
-    (Thread/sleep 15000)
-    (>!! j "shutting down!")
-    (Thread/sleep 1000)
-    (close! j)
-    (Thread/sleep 1000)
-    (close! t)
-    ;; Without this sleep, the repl outputs a line saying "nil",
-    ;; which screws up the final output of the lines.
-    (Thread/sleep 100)))
+(defn demo
+  ([]
+    (demo (console-status-board)))
+  ([t]
+   (let [j (add-job t {:status :success :pinned true})]
+     (>!! j "adding one, two, three")
+     (job (add-job t) "one" 100 50)
+     (job (add-job t) "two" 500 100 :warning true)
+     (job (add-job t) "three" 250 10 :normal true)
+     (>!! j "first sleep")
+     (Thread/sleep 3000)
+     (>!! j "adding four, five")
+     (job (add-job t) "four" 250 10 :success false)
+     (job (add-job t) "five" 2000 30)
+     (>!! j "second sleep")
+     (Thread/sleep 3000)
+     (job (add-job t) "six" 250 100 :error true)
+     (job (add-job t) "seven" 10 1000 :normal true)
+     (Thread/sleep 2000)
+     (>!! j "final (long) sleep")
+     (Thread/sleep 15000)
+     (>!! j "shutting down!")
+     (Thread/sleep 1000)
+     (close! j)
+     (Thread/sleep 1000)
+     (close! t)
+     ;; Without this sleep, the repl outputs a line saying "nil",
+     ;; which screws up the final output of the lines.
+     (Thread/sleep 100))))
 
 (defn reload []
   (load-file "src/com/walmartlabs/active_status.clj")

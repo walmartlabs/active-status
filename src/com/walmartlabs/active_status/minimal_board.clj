@@ -2,7 +2,7 @@
   "Simplified status board, used for testing in the Cursive REPL, which is unable to handle the
 complicated ANSI cursor motion of the active status board."
   {:added "0.1.4"}
-  (:require com.walmartlabs.active-status                   ; to define SetPrefix
+  (:require [com.walmartlabs.active-status :as as]                 ; to define SetPrefix
             [clojure.core.async :refer [chan go go-loop <! >! pipe close!]])
   (:import (com.walmartlabs.active_status SetPrefix)))
 
@@ -58,7 +58,7 @@ complicated ANSI cursor motion of the active status board."
   (go
     (loop []
       (when-let [job-def (<! new-jobs-ch)]
-        (pipe (:channel job-def) (job-loop print-loop-ch))
+        (pipe (::as/channel job-def) (job-loop print-loop-ch))
         (recur)))
     (close! print-loop-ch)))
 

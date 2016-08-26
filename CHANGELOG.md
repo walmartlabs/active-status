@@ -1,6 +1,8 @@
 ## 0.1.10 - UNRELEASED
 
+Fixed the minimal-status-board, which was completely broken.
 
+[Closed Issues](https://github.com/walmartlabs/active-status/issues?q=milestone%3A0.1.10)
 
 ## 0.1.9 - 18 Jul 2016
 
