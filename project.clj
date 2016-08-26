@@ -6,7 +6,7 @@
 
   :dependencies [[org.clojure/clojure "1.9.0-alpha10"]
                  [org.clojure/core.async "0.2.385"]
-                 [io.aviso/pretty "0.1.28"]
+                 [io.aviso/pretty "0.1.30"]
                  [io.aviso/config "0.2.0" :optional true]]
   :aliases {"release" ["do"
                        "clean,"
