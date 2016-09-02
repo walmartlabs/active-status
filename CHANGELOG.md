@@ -1,3 +1,12 @@
+## 0.1.11 - 2 Sep 2016
+
+*Incompatible changes:*
+
+The value returned from console-status-board is no longer a channel;
+a new protocol with method shutdown! has been added. 
+
+[Closed Issues](https://github.com/walmartlabs/active-status/issues?q=milestone%3A0.1.11)
+
 ## 0.1.10 - 26 Aug 2016
 
 Fixed the minimal-status-board, which was completely broken.

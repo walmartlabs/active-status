@@ -1,15 +1,71 @@
 (ns com.walmartlabs.active-status
   "Present asynchronous status of multiple concurrent jobs within a command-line application."
-  (:require [clojure.core.async :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout]]
+  (:require [clojure.core.async :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout <!!]]
             [clojure.java.shell :refer [sh]]
             [clojure.string :as str]
             [io.aviso.ansi :as ansi]
             [clojure.java.io :as io]
-            [com.walmartlabs.active-status.internal :refer [map-vals remove-vals]])
+            [com.walmartlabs.active-status.internal :refer [map-vals remove-vals add-job-to-board channel-for-job]])
   (:import (java.util.concurrent.atomic AtomicInteger)
            [java.io PrintStream]))
 
 (defn- millis [] (System/currentTimeMillis))
+
+
+(defprotocol StatusJobInitiation
+
+  (add-job [board]
+    [board options]
+    "Adds a new job to an existing status board, returning a channel for updates to the job.
+
+  You may put updates into the job's channel, or close the channel, to terminate the job.
+
+  The primary job update is just a String, which changes the summary text for the job.
+
+  Other update objects can change the visible status of the job, or enable and update
+  a progress bar specific to the job. Functions such as [[change-status]] and
+  [[start-progress]] return job update values that can be put into the job's channel.
+
+  Example:
+
+      (require '[com.walmartlabs.active-status :as as]
+               '[clojure.core.async :refer [close! >!!]])
+
+      (defn process-files [board files]
+        (let [job-ch (as/add-job board)]
+            (>!! job-ch (as/start-progress (count files)))
+            (doseq [f files]
+              (>!! job-ch (str \"Processing: \" f))
+              (process-single-file f)
+              (>!! job-ch (as/progress-tick)))
+            (close! job-ch)))
+
+  When a job is changed in any way, it will briefly be highlighted (in bold font).
+  If not updated for a set period of time (by default, 1 second) it will then dim (normal font).
+
+  A terminated job will stay visible, but is moved up above any non-terminated jobs.
+  It will highlight for a moment as well.
+
+  board
+  : The status board, as returned by [[console-status-board]].
+
+  options
+  : A map of additional options:
+
+  :status
+  : The initial status for the job (:normal, :success, :warning, :error).
+
+  :pinned
+  : If true, then any update to the job will move it to the first (bottommost) line, shifting others up.
+    You rarely want more than one pinned job."))
+
+(defprotocol ^{:added "0.1.11"} StatusBoardTermination
+
+  (shutdown! [board]
+    "Shuts the status board down, terminating all jobs, and blocking until final output
+    is written to the console.
+
+    Returns nil."))
 
 ;; The job model:
 ;;
@@ -60,7 +116,7 @@
   (println)                                                 ; Add a new line for the new job
   ;; Convert each value into a tuple of job-id and update value, and push that
   ;; value into the composite channel.
-  (let [job-ch (::channel job)]
+  (let [job-ch (channel-for-job job)]
     (go-loop []
       (let [v (<! job-ch)]
         (>! composite-ch [job-id v])
@@ -257,8 +313,7 @@
              active
              (not= 1 line)
              ;; Have to be selective about comparing only things that affect the
-             ;; line output.  :updated, :line, maybe :active are always changing
-             ;; (and ::channel never does).
+             ;; line output.  :updated, :line, maybe :active are always changing.
              (not= (select-keys job-pre output-keys)
                    (select-keys job-post output-keys)))
       (as-> jobs %
@@ -330,7 +385,7 @@
     (timeout update-millis)))
 
 (defn- start-process
-  [new-jobs-ch configuration]
+  [new-jobs-ch shutdown-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
   (let [{:keys [update-millis dim-after-millis]} configuration
         composite-ch       (chan 10)
@@ -351,11 +406,16 @@
                    ;; Unfortunately, incrementing :line for all jobs means that
                    ;; the next status board refresh will be a full repaint of all jobs.
                    interval-ch)
-            ;; Finalize the output and exit the go loop:
-            (->> jobs
-                 (map-vals #(assoc % ::active false
-                                   ::complete true))
-                 (>! refresh-ch))))
+            (do
+              ;; Finalize the output and exit the go loop:
+              (->> jobs
+                   (map-vals #(assoc % ::active false
+                                     ::complete true))
+                   (>! refresh-ch))
+              ;; Wait for the update ...
+              (<! refreshed-jobs-ch)
+              ;; And signal that it is safe to continue.
+              (close! shutdown-ch))))
 
         ;; We try to keep interval-ch as nil when there's no
         ;; need for an update.
@@ -437,63 +497,26 @@
   ([]
    (console-status-board default-console-configuration))
   ([configuration]
-   (let [ch (chan 1)]
-     (start-process ch configuration)
-     ch)))
+   (let [board-ch (chan 1)
+         shutdown-ch (chan)]
+     (start-process board-ch shutdown-ch configuration)
 
-(defn add-job
-  "Adds a new job, returning a channel for updates to the job.
+     (reify
 
-  You may put updates into the job's channel, or close the channel, to terminate the job.
+       StatusBoardTermination
 
-  The primary job update is just a String, which changes the summary text for the job.
+       (shutdown! [_]
+         (close! board-ch)
+         (<!! shutdown-ch)
+         nil)
 
-  Other update objects can change the visible status of the job, or enable and update
-  a progress bar specific to the job. Functions such as [[change-status]] and
-  [[start-progress]] return job update values that can be put into the job's channel.
+       StatusJobInitiation
 
-  Example:
+       (add-job [_]
+         (add-job-to-board board-ch nil))
 
-      (require '[com.walmartlabs.active-status :as as]
-               '[clojure.core.async :refer [close! >!!]])
-
-      (defn process-files [board-ch files]
-        (let [job-ch (as/add-job board-ch)]
-            (>!! job-ch (as/start-progress (count files)))
-            (doseq [f files]
-              (>!! job-ch (str \"Processing: \" f))
-              (process-single-file f)
-              (>!! job-ch (as/progress-tick)))
-            (close! job-ch)))
-
-  When a job is changed in any way, it will briefly be highlighted (in bold font).
-  If not updated for a set period of time (by default, 1 second) it will then dim (normal font).
-
-  A terminated job will stay visible, but is moved up above any non-terminated jobs.
-  It will highlight for a moment as well.
-
-
-  board-ch
-  : The channel for the score board, as returned by [[console-status-board]].
-
-  options
-  : A map of additional options:
-
-  :status
-  : The initial status for the job (:normal, :success, :warning, :error).
-
-  :pinned
-  : If true, then any update to the job will move it to the first (bottommost) line, shifting others up.
-    You rarely want more than one pinned job."
-  ([board-ch]
-   (add-job board-ch nil))
-  ([board-ch options]
-   {:pre [board-ch]}
-   (let [ch (chan 3)]
-     (put! board-ch (-> options
-                        (select-keys [:status :pinned])
-                        (assoc ::channel ch)))
-     ch)))
+       (add-job [_ options]
+         (add-job-to-board board-ch options))))))
 
 (defn- job-updater
   [f]

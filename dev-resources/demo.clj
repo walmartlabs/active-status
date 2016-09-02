@@ -53,10 +53,7 @@
      (Thread/sleep 1000)
      (close! j)
      (Thread/sleep 1000)
-     (close! t)
-     ;; Without this sleep, the repl outputs a line saying "nil",
-     ;; which screws up the final output of the lines.
-     (Thread/sleep 100))))
+     (shutdown! t))))
 
 (defn reload []
   (load-file "src/com/walmartlabs/active_status.clj")
@@ -100,21 +97,19 @@
 
 (defn start-batmobile
   ([]
-   (let [t (console-status-board)]
-     (with-output-redirected "batmobile"
-       (<!! (start-batmobile t))
-       (close! t)
-       (Thread/sleep 100))))
+   (start-batmobile (console-status-board)))
   ([t]
-    (go
-      (let [channels [(simple-job t "Atomic turbines to speed" 2000)
-                      (progress-job t "Loading Bat-fuel" 15 250)
-                      (progress-job t "Rotating Batmobile platform" 180 10)
-                      (simple-job t "Initializing on-board Bat-computer" 1000)
-                      (go
-                        (<! (timeout 1000))
-                        (doto (add-job t {:status :warning})
-                            (>! "Please fasten your Bat-seatbelts")))]]
-        (doseq [ch channels]
-          (<! ch)                                           ; wait for each sub-job to finish
-          )))))
+   (with-output-redirected "batmobile"
+     (<!! (go
+            (let [channels [(simple-job t "Atomic turbines to speed" 2000)
+                            (progress-job t "Loading Bat-fuel" 15 250)
+                            (progress-job t "Rotating Batmobile platform" 180 10)
+                            (simple-job t "Initializing on-board Bat-computer" 1000)
+                            (go
+                              (<! (timeout 1000))
+                              (doto (add-job t {:status :warning})
+                                (>! "Please fasten your Bat-seatbelts")))]]
+              (doseq [ch channels]
+                (<! ch)                                           ; wait for each sub-job to finish
+                ))))
+     (shutdown! t))))

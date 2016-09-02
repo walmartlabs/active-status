@@ -1,9 +1,10 @@
 (ns com.walmartlabs.active-status.minimal-board
   "Simplified status board, used for testing in the Cursive REPL, which is unable to handle the
-complicated ANSI cursor motion of the active status board."
+complicated terminal capabilities based cursor motion of the full console status board."
   {:added "0.1.4"}
-  (:require [com.walmartlabs.active-status :as as]                 ; to define SetPrefix
-            [clojure.core.async :refer [chan go go-loop <! >! pipe close!]])
+  (:require [clojure.core.async :refer [chan go go-loop <! >! pipe () close!]]
+            [com.walmartlabs.active-status :as as]
+            [com.walmartlabs.active-status.internal :refer [add-job-to-board channel-for-job]])
   (:import (com.walmartlabs.active_status SetPrefix)))
 
 (defn- print-loop
@@ -58,7 +59,7 @@ complicated ANSI cursor motion of the active status board."
   (go
     (loop []
       (when-let [job-def (<! new-jobs-ch)]
-        (pipe (::as/channel job-def) (job-loop print-loop-ch))
+        (pipe (channel-for-job job-def) (job-loop print-loop-ch))
         (recur)))
     (close! print-loop-ch)))
 
@@ -78,4 +79,20 @@ complicated ANSI cursor motion of the active status board."
   (let [new-job-ch (chan 1)
         print-loop-ch (print-loop)]
     (start-process new-job-ch print-loop-ch)
-    new-job-ch))
+
+    (reify
+      as/StatusBoardTermination
+
+      (shutdown! [_]
+        (close! new-job-ch)
+        ;; Technically, we're not 100% sure that all output has been written at this point.
+        ;; But we can let that slide for ths minimal status board.
+        nil)
+
+      as/StatusJobInitiation
+
+      (add-job [_]
+        (add-job-to-board new-job-ch nil))
+
+      (add-job [_ options]
+        (add-job-to-board new-job-ch options)))))
