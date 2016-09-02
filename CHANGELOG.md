@@ -1,6 +1,6 @@
 ## 0.1.11 - 2 Sep 2016
 
-*Incompatible changes:*
+**Incompatible changes:**
 
 The value returned from console-status-board is no longer a channel;
 a new protocol with method shutdown! has been added. 
