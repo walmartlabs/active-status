@@ -18,8 +18,8 @@ complicated terminal capabilities based cursor motion of the full console status
         (recur)))
     ch))
 
-(defprotocol UpdateModel
-  "Not intended for use outside this namespace."
+(defprotocol ^:no-doc UpdateModel
+
   (update-model [this model]
     "Use this value to upodate the simplified job model."))
 
