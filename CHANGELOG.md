@@ -1,3 +1,7 @@
+## 0.1.12 - 10 Nov 2016
+
+Fix an NPE when using the StatusBoardComponent.
+
 ## 0.1.11 - 2 Sep 2016
 
 **Incompatible changes:**

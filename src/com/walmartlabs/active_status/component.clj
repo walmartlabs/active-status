@@ -18,12 +18,10 @@
   (configure [this configuration]
     (merge this configuration))
 
-  as/StatusJobInitiation
-
   component/Lifecycle
 
   (start [this]
-    (assoc this :board-ch
+    (assoc this :status-board
            (if (= mode :minimal)
              (minimal/minimal-status-board)
              (as/console-status-board))))

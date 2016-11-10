@@ -86,7 +86,7 @@ complicated terminal capabilities based cursor motion of the full console status
       (shutdown! [_]
         (close! new-job-ch)
         ;; Technically, we're not 100% sure that all output has been written at this point.
-        ;; But we can let that slide for ths minimal status board.
+        ;; But we can let that slide for this minimal status board.
         nil)
 
       as/StatusJobInitiation
