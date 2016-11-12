@@ -1,3 +1,8 @@
+## 0.1.13 - UNRELEASED
+
+Correct invalid documentation.
+
+
 ## 0.1.12 - 10 Nov 2016
 
 Fix an NPE when using the StatusBoardComponent.

@@ -13,4 +13,4 @@
                        "deploy" "clojars"]}
   :codox {:source-uri "https://github.com/walmartlabs/active-status/blob/master/{filepath}#L{line}"
           :metadata   {:doc/format :markdown}}
-  :plugins [[lein-codox "0.9.3"]])
+  :plugins [[lein-codox "0.10.1"]])

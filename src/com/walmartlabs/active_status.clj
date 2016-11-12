@@ -471,7 +471,7 @@
   an optional status (:normal, :success, :warning, :error),
   and optional progress state.
 
-  The job's status control the font color for the entire line.
+  The job's status determines the font color for the entire line.
   If progress state exists, then a progress bar is included for the job.
 
   The board is presented using simple text, and updates in place, using terminal capability
@@ -479,14 +479,9 @@
 
   The status board runs as a core.async process.
 
-  This function returns a channel; the channel can be passed to [[add-job]].
+  This function returns the status board; the status board can be passed to [[add-job]].
 
-  Close the returned channel to shut down the status board immediately.
-
-  Note that when testing in the REPL, you may see slightly odd output as the REPL
-  will return and print nil *before* the final update to the status board. Adding
-  a short sleep after closing the status board channel, but before returning, is
-  useful in the REPL.
+  Pass the status board to [[shutdown!]] to shut down the status board immediately.
 
   configuration
   : The configuration to use for the status board, defaulting to [[default-configuration]].
