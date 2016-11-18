@@ -30,12 +30,13 @@
 (defn add-job-to-board
   [board-ch options]
   (let [job-ch (chan 3)
-        ]
+        fix-keys (fn [m]
+                   (map-keys #(->> %
+                                   name
+                                   (keyword "com.walmartlabs.active-status")) m))]
     (put! board-ch (-> options
                        (select-keys [:status :pinned :prefix :summary])
-                       (map-keys #(->> %
-                                       name
-                                       (keyword "com.walmartlabs.active-status")))
+                       fix-keys
                        (assoc ::channel job-ch)))
     job-ch))
 
