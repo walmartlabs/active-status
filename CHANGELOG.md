@@ -1,4 +1,4 @@
-## 0.1.13 - UNRELEASED
+## 0.1.13 - 18 Nov 2016
 
 Correct invalid documentation.
 
