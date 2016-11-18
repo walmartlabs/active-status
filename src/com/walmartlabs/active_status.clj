@@ -57,7 +57,10 @@
 
   :pinned
   : If true, then any update to the job will move it to the first (bottommost) line, shifting others up.
-    You rarely want more than one pinned job."))
+    You rarely want more than one pinned job.
+
+  :prefix
+  : Job prefix string (as per [[set-prefix]])."))
 
 (defprotocol ^{:added "0.1.11"} StatusBoardTermination
 

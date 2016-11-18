@@ -107,8 +107,9 @@
                             (simple-job t "Initializing on-board Bat-computer" 1000)
                             (go
                               (<! (timeout 1000))
-                              (doto (add-job t {:status :warning})
-                                (>! "Please fasten your Bat-seatbelts")))]]
+                              (add-job t {:status :warning
+                                          :prefix "Alert: "
+                                          :summary "Please fasten your Bat-seatbelts"}))]]
               (doseq [ch channels]
                 (<! ch)                                           ; wait for each sub-job to finish
                 ))))

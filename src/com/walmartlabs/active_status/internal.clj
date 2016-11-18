@@ -10,6 +10,14 @@
              (empty coll)
              coll))
 
+(defn map-keys
+  [f coll]
+  (when coll
+    (reduce-kv (fn [coll k v]
+                 (assoc coll (f k) v))
+               (empty coll)
+               coll)))
+
 (defn remove-vals
   [f coll]
   (reduce-kv (fn [coll k v]
@@ -21,9 +29,13 @@
 
 (defn add-job-to-board
   [board-ch options]
-  (let [job-ch (chan 3)]
+  (let [job-ch (chan 3)
+        ]
     (put! board-ch (-> options
-                       (select-keys [:status :pinned])
+                       (select-keys [:status :pinned :prefix :summary])
+                       (map-keys #(->> %
+                                       name
+                                       (keyword "com.walmartlabs.active-status")))
                        (assoc ::channel job-ch)))
     job-ch))
 

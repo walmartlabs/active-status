@@ -21,7 +21,7 @@ complicated terminal capabilities based cursor motion of the full console status
 (defprotocol ^:no-doc UpdateModel
 
   (update-model [this model]
-    "Use this value to upodate the simplified job model."))
+    "Use this value to update the simplified job model."))
 
 (extend-protocol UpdateModel
 

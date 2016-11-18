@@ -2,6 +2,9 @@
 
 Correct invalid documentation.
 
+Correctly handle options passed to add-job.
+
+Allow :prefix as an option to add-job.
 
 ## 0.1.12 - 10 Nov 2016
 
