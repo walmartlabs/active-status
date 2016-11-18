@@ -88,6 +88,11 @@
 ;; ::target - target value to reach
 ;; ::current - current value towards target
 
+(defmacro ^:private with-output
+  [out & body]
+  `(binding [*out* ~out]
+     (locking *out*
+       ~@body)))
 
 (defprotocol JobUpdater
   "A protocol that indicates how a particular job is updated by a particular type."
@@ -101,8 +106,8 @@
 
 (def ^:private status-to-ansi
   {:warning ansi/yellow-font
-   :normal  nil
-   :error   ansi/red-font
+   :normal nil
+   :error ansi/red-font
    :success ansi/green-font})
 
 (defrecord ^{:added "0.1.4"} SetPrefix [prefix]
@@ -115,8 +120,10 @@
   (update job ::line inc))
 
 (defn- setup-new-job
-  [jobs composite-ch job job-id]
-  (println)                                                 ; Add a new line for the new job
+  [out jobs composite-ch job job-id]
+  (with-output out
+    ;; Add a new line for the new job
+    (println))
   ;; Convert each value into a tuple of job-id and update value, and push that
   ;; value into the composite channel.
   (let [job-ch (channel-for-job job)]
@@ -147,7 +154,7 @@
   The ratio should be between 0 (inclusive) and 1 (non-inclusive)."
   {:added "0.1.7"}
   ([completed-ratio]
-    (bar 30 completed-ratio))
+   (bar 30 completed-ratio))
   ([bar-length completed-ratio]
    (let [completed-length (int (* completed-ratio bar-length))]
      ;; https://en.wikipedia.org/wiki/Block_Elements
@@ -160,8 +167,8 @@
   {:added "0.1.7"}
   [progress]
   (let [{:keys [::current ::target]} progress
-        displayable      (and (pos? target) (pos? current))
-        completed-ratio  (if displayable (/ current target) 0)]
+        displayable (and (pos? target) (pos? current))
+        completed-ratio (if displayable (/ current target) 0)]
     (str " "
          (bar completed-ratio)
          (when displayable
@@ -193,8 +200,7 @@
                 err)
         ""))))
 
-(def ^{:added "0.1.7"}
-  tput
+(def ^{:added "0.1.7"} tput
   "Invokes the `tput` command in a shell, passing it all arguments passed to this function."
   (memoize
     (fn [& args]
@@ -202,44 +208,43 @@
 
 (defn- refresh-status-board
   [out default-progress-formatter old-jobs new-jobs]
-  (binding [*out* out]
-    (locking [*out*]
-      (doseq [[job-id job] new-jobs
-              :when (not= job (get old-jobs job-id))
-              :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress
-                            ::progress-formatter]
-                     :or {progress-formatter default-progress-formatter}} job]]
-        (try
-          (print (str (tput "civis")                        ; make cursor invisible
-                      (tput "sc")                           ; save cursor position
-                      (tput "cuu" line)                     ; cursor up
-                      (tput "hpa" 0)                        ; move to leftmost column
-                      (tput "el")                           ; clear to end-of-line
-                      (status-to-ansi status)
-                      (cond
-                        active
-                        ansi/bold-font
+  (with-output out
+    (doseq [[job-id job] new-jobs
+            :when (not= job (get old-jobs job-id))
+            :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress
+                          ::progress-formatter]
+                   :or {progress-formatter default-progress-formatter}} job]]
+      (try
+        (print (str (tput "civis")                          ; make cursor invisible
+                    (tput "sc")                             ; save cursor position
+                    (tput "cuu" line)                       ; cursor up
+                    (tput "hpa" 0)                          ; move to leftmost column
+                    (tput "el")                             ; clear to end-of-line
+                    (status-to-ansi status)
+                    (cond
+                      active
+                      ansi/bold-font
 
-                        ;; Few terminals seem to support italic out of the box, alas.
-                        complete
-                        ansi/italic-font)
+                      ;; Few terminals seem to support italic out of the box, alas.
+                      complete
+                      ansi/italic-font)
 
-                      prefix                                ; when non-nil, you want a separator character
-                      summary
-                      ansi/csi 23 ansi/sgr                  ; not italic, but leave color/bold
-                      (when progress
-                        (progress-formatter progress))
-                      ansi/reset-font
-                      (tput "rc")                           ; restore cursor position
-                      (tput "cnorm")                        ; make cursor visible
-                      ))
-          (catch Throwable t
-            (throw (ex-info "Exception updating console status board."
-                            {::old-jobs old-jobs
-                             ::new-jobs new-jobs
-                             ::job job}
-                            t))))
-        (flush)))))
+                    prefix                                  ; when non-nil, you want a separator character
+                    summary
+                    ansi/csi 23 ansi/sgr                    ; not italic, but leave color/bold
+                    (when progress
+                      (progress-formatter progress))
+                    ansi/reset-font
+                    (tput "rc")                             ; restore cursor position
+                    (tput "cnorm")                          ; make cursor visible
+                    ))
+        (catch Throwable t
+          (throw (ex-info "Exception updating console status board."
+                          {::old-jobs old-jobs
+                           ::new-jobs new-jobs
+                           ::job job}
+                          t))))
+      (flush))))
 
 (defn- move-job-up
   [jobs job-id new-line]
@@ -322,9 +327,9 @@
                    (select-keys job-post output-keys)))
       (as-> jobs %
             (map-vals (fn [j]
-                               (if (< (:line j) line)
-                                 (update j ::line inc)
-                                 j))
+                        (if (< (:line j) line)
+                          (update j ::line inc)
+                          j))
                       %)
             (assoc % job-id (assoc job-post ::line 1)))
       jobs)))
@@ -391,19 +396,19 @@
 (defn- start-process
   [new-jobs-ch shutdown-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
-  (let [{:keys [update-millis dim-after-millis]} configuration
-        composite-ch       (chan 10)
+  (let [{:keys [update-millis dim-after-millis out]} configuration
+        composite-ch (chan 10)
         forever-timeout-ch (chan)
-        refresh-ch         (chan)
-        key-source         (AtomicInteger.)
-        refreshed-jobs-ch  (start-refresh-process configuration refresh-ch)]
+        refresh-ch (chan)
+        key-source (AtomicInteger.)
+        refreshed-jobs-ch (start-refresh-process configuration refresh-ch)]
     (go-loop [jobs {}
               interval-ch nil]
       (alt!
         new-jobs-ch
         ([v]
           (if (some? v)
-            (recur (setup-new-job jobs composite-ch v (.incrementAndGet key-source))
+            (recur (setup-new-job out jobs composite-ch v (.incrementAndGet key-source))
                    ;; There's no need to update now (if there wasn't already)
                    ;; because new jobs are always just a blank line (until the first update),
                    ;; which has already been printed.
@@ -424,15 +429,15 @@
         ;; We try to keep interval-ch as nil when there's no
         ;; need for an update.
         (or interval-ch forever-timeout-ch)
-        (let [jobs'          (try
-                               (map-vals #(apply-dim dim-after-millis %) jobs)
-                               (catch Throwable t
-                                 (throw (ex-info "apply-dim failed"
-                                                 {::jobs jobs
-                                                  ::configuration configuration}
-                                                 t))))
+        (let [jobs' (try
+                      (map-vals #(apply-dim dim-after-millis %) jobs)
+                      (catch Throwable t
+                        (throw (ex-info "apply-dim failed"
+                                        {::jobs jobs
+                                         ::configuration configuration}
+                                        t))))
               ;; Ask it to refresh the output
-              _              (>! refresh-ch jobs')
+              _ (>! refresh-ch jobs')
               ;; Continue after it finishes, with the revised job map
               ;; (reflecting the removal of inactive, complete jobs)
               refreshed-jobs (<! refreshed-jobs-ch)]

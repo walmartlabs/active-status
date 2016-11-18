@@ -1,3 +1,7 @@
+## 0.1.14 - 18 Nov 2016
+
+Fix output bug in prior version.
+
 ## 0.1.13 - 18 Nov 2016
 
 Correct invalid documentation.
