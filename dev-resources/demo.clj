@@ -55,12 +55,6 @@
      (Thread/sleep 1000)
      (shutdown! t))))
 
-(defn reload []
-  (load-file "src/com/walmartlabs/active_status.clj")
-  (load-file "dev-resources/demo.clj")
-  (println "Reloaded."))
-
-
 (defn progress-job
   [t message target delay]
   (let [job (add-job t)]
