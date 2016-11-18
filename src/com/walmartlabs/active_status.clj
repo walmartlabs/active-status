@@ -201,44 +201,45 @@
       (tput* args))))
 
 (defn- refresh-status-board
-  [default-progress-formatter old-jobs new-jobs]
-  (locking [*out*]
-    (doseq [[job-id job] new-jobs
-            :when (not= job (get old-jobs job-id))
-            :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress
-                          ::progress-formatter]
-                   :or {progress-formatter default-progress-formatter}} job]]
-      (try
-        (print (str (tput "civis")                          ; make cursor invisible
-                    (tput "sc")                             ; save cursor position
-                    (tput "cuu" line)                       ; cursor up
-                    (tput "hpa" 0)                          ; move to leftmost column
-                    (tput "el")                             ; clear to end-of-line
-                    (status-to-ansi status)
-                    (cond
-                      active
-                      ansi/bold-font
+  [out default-progress-formatter old-jobs new-jobs]
+  (binding [*out* out]
+    (locking [*out*]
+      (doseq [[job-id job] new-jobs
+              :when (not= job (get old-jobs job-id))
+              :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress
+                            ::progress-formatter]
+                     :or {progress-formatter default-progress-formatter}} job]]
+        (try
+          (print (str (tput "civis")                        ; make cursor invisible
+                      (tput "sc")                           ; save cursor position
+                      (tput "cuu" line)                     ; cursor up
+                      (tput "hpa" 0)                        ; move to leftmost column
+                      (tput "el")                           ; clear to end-of-line
+                      (status-to-ansi status)
+                      (cond
+                        active
+                        ansi/bold-font
 
-                      ;; Few terminals seem to support italic out of the box, alas.
-                      complete
-                      ansi/italic-font)
+                        ;; Few terminals seem to support italic out of the box, alas.
+                        complete
+                        ansi/italic-font)
 
-                    prefix                                  ; when non-nil, you want a separator character
-                    summary
-                    ansi/csi 23 ansi/sgr
-                    (when progress
-                      (progress-formatter progress))
-                    ansi/reset-font
-                    (tput "rc")                             ; restore cursor position
-                    (tput "cnorm")                          ; make cursor visible
-                    ))
-        (catch Throwable t
-          (throw (ex-info "Exception updating console status board."
-                          {::old-jobs old-jobs
-                           ::new-jobs new-jobs
-                           ::job job}
-                          t))))
-      (flush))))
+                      prefix                                ; when non-nil, you want a separator character
+                      summary
+                      ansi/csi 23 ansi/sgr                  ; not italic, but leave color/bold
+                      (when progress
+                        (progress-formatter progress))
+                      ansi/reset-font
+                      (tput "rc")                           ; restore cursor position
+                      (tput "cnorm")                        ; make cursor visible
+                      ))
+          (catch Throwable t
+            (throw (ex-info "Exception updating console status board."
+                            {::old-jobs old-jobs
+                             ::new-jobs new-jobs
+                             ::job job}
+                            t))))
+        (flush)))))
 
 (defn- move-job-up
   [jobs job-id new-line]
@@ -357,10 +358,10 @@
   are removed and the resulting map conveyed on the returned channel."
   [configuration in-ch]
   (let [out-ch (chan)
-        {:keys [progress-formatter]} configuration]
+        {:keys [progress-formatter out]} configuration]
     (go-loop [prior-jobs {}]
       (when-let [new-jobs (<! in-ch)]
-        (refresh-status-board progress-formatter prior-jobs new-jobs)
+        (refresh-status-board out progress-formatter prior-jobs new-jobs)
         (let [new-jobs' (remove-vals #(and (::complete %)
                                            (not (::active %)))
                                      new-jobs)]
@@ -455,10 +456,14 @@
 
   :progress-formatter
   : Function that formats the ::progress data of a job, if present.
-    Defaults to [[default-progress-formatter]]."
+    Defaults to [[default-progress-formatter]].
+
+  :out
+  : Where to send output, defaults to `*out*`."
   {:dim-after-millis 1000
    :update-millis 100
-   :progress-formatter default-progress-formatter})
+   :progress-formatter default-progress-formatter
+   :out *out*})
 
 (defn console-status-board
   "Creates a new status board suitable for use in a command-line application.
