@@ -1,3 +1,9 @@
+## 0.1.15 - UNRELEASED
+
+Added some common utilities for reporting progress of long running
+jobs: the `com.walmartlabs.active-status.reporting` namespace, and
+`com.walmartlabs.active-status.component/elapsed-time`.
+
 ## 0.1.14 - 18 Nov 2016
 
 Fix output bug in prior version.

@@ -1,2 +1,6 @@
 {:status-board
- {:mode :console}}
+ {:mode :console}
+
+ :elapsed-time
+ {:delay 1
+  :interval 1}}

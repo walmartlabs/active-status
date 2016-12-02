@@ -1,4 +1,4 @@
-(defproject walmartlabs/active-status "0.1.14"
+(defproject walmartlabs/active-status "0.1.15"
   :description "Present status of mulitple 'jobs' in a command line tool, using terminal capability codes"
   :url "https://github.com/walmartlabs/active-status"
   :license {:name "Apache Sofware License 2.0"
@@ -6,11 +6,11 @@
 
   :dependencies [[org.clojure/clojure "1.9.0-alpha14"]
                  [org.clojure/core.async "0.2.395"]
-                 [io.aviso/pretty "0.1.32"]
-                 [io.aviso/config "0.2.1" :optional true]]
+                 [io.aviso/pretty "0.1.33"]
+                 [io.aviso/config "0.2.2" :optional true]]
   :aliases {"release" ["do"
                        "clean,"
                        "deploy" "clojars"]}
   :codox {:source-uri "https://github.com/walmartlabs/active-status/blob/master/{filepath}#L{line}"
           :metadata   {:doc/format :markdown}}
-  :plugins [[lein-codox "0.10.1"]])
+  :plugins [[lein-codox "0.10.2"]])

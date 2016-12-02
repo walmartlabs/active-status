@@ -2,7 +2,8 @@
   (:use clojure.repl)
   (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!]]
             [com.walmartlabs.active-status.minimal-board :refer [minimal-status-board]]
-            [com.walmartlabs.active-status :refer :all :as as])
+            [com.walmartlabs.active-status :refer :all :as as]
+            [com.walmartlabs.active-status.progress :refer [elapsed-time-job]])
   (:import [java.util UUID]))
 
 (defn- job
@@ -32,6 +33,7 @@
   ([]
     (demo (console-status-board)))
   ([t]
+   (elapsed-time-job t)
    (let [j (add-job t {:status :success :pinned true})]
      (>!! j "adding one, two, three")
      (job (add-job t) "one" 100 50)
