@@ -327,7 +327,7 @@
                    (select-keys job-post output-keys)))
       (as-> jobs %
             (map-vals (fn [j]
-                        (if (< (:line j) line)
+                        (if (< (::line j) line)
                           (update j ::line inc)
                           j))
                       %)
