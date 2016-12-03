@@ -1,9 +1,11 @@
 (ns demo
   (:use clojure.repl)
-  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!!]]
+  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!! chan]]
             [com.walmartlabs.active-status.minimal-board :refer [minimal-status-board]]
             [com.walmartlabs.active-status :refer :all :as as]
-            [com.walmartlabs.active-status.progress :refer [elapsed-time-job]])
+            [com.walmartlabs.active-status.workers :as w]
+            [com.walmartlabs.active-status.progress :refer [elapsed-time-job report-progress]]
+            [clojure.core.async :as async])
   (:import [java.util UUID]))
 
 (defn- job
@@ -110,3 +112,28 @@
                 (<! ch)                                           ; wait for each sub-job to finish
                 ))))
      (shutdown! t))))
+
+(defn sleep-worker
+  [work-ch job-ch]
+  (go
+    (loop []
+      (when-let [v (<! work-ch)]
+        (>! job-ch (str "Sleeping for " v))
+        (<! (timeout (* 1000 v)))
+        (recur)))))
+
+(defn driver
+  [status-board]
+  (let [job-ch (as/add-job status-board)
+        sleep-counts (concat (repeatedly 32 #(inc (rand-int 2))) [10])
+        work-ch (async/pipe (async/to-chan sleep-counts)
+                            (chan 1 (report-progress 5 job-ch #(format "sleep progress %,d / %,d" % (count sleep-counts)))))]
+    (elapsed-time-job status-board)
+    (w/run-workers 3
+                   (w/wrap-with-status status-board #(sleep-worker work-ch %)))))
+
+(defn worker-demo
+  []
+  (let [status-board (as/console-status-board)]
+    (<!! (driver status-board))
+    (as/shutdown! status-board)))
