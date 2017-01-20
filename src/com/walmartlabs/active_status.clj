@@ -9,8 +9,7 @@
   (:import (java.util.concurrent.atomic AtomicInteger)
            [java.io PrintStream]))
 
-(defn- millis [] (System/currentTimeMillis))
-
+(defn ^:private millis [] (System/currentTimeMillis))
 
 (defprotocol StatusJobInitiation
 
@@ -29,15 +28,15 @@
   Example:
 
       (require '[com.walmartlabs.active-status :as as]
-               '[clojure.core.async :refer [close! >!!]])
+               '[clojure.core.async :refer [close! put!]])
 
       (defn process-files [board files]
         (let [job-ch (as/add-job board)]
-            (>!! job-ch (as/start-progress (count files)))
+            (put! job-ch (as/start-progress (count files)))
             (doseq [f files]
-              (>!! job-ch (str \"Processing: \" f))
+              (put! job-ch (str \"Processing: \" f))
               (process-single-file f)
-              (>!! job-ch (as/progress-tick)))
+              (put! job-ch (as/progress-tick)))
             (close! job-ch)))
 
   When a job is changed in any way, it will briefly be highlighted (in bold font).
@@ -115,11 +114,11 @@
   (update-job [_ job]
     (assoc job ::prefix prefix)))
 
-(defn- increment-line
+(defn ^:private increment-line
   [job]
   (update job ::line inc))
 
-(defn- setup-new-job
+(defn ^:private setup-new-job
   [out jobs composite-ch job job-id]
   (with-output out
     ;; Add a new line for the new job
@@ -182,14 +181,14 @@
   `TERM` environment variable or, if not set, the explicit value `xterm`."
   (or (System/getenv "TERM") "xterm"))
 
-(defn- transmute-out
+(defn ^:private transmute-out
   ":out from sh can be byte[] or String."
   [s]
   (if (string? s)
     s
     (slurp s)))
 
-(defn- tput*
+(defn ^:private tput*
   [args]
   (let [{:keys [exit out err]} (apply sh "tput" (str "-T" *terminal-type*) (mapv str args))]
     (if (= 0 exit)
@@ -206,7 +205,7 @@
     (fn [& args]
       (tput* args))))
 
-(defn- refresh-status-board
+(defn ^:private refresh-status-board
   [out default-progress-formatter old-jobs new-jobs]
   (with-output out
     (doseq [[job-id job] new-jobs
@@ -246,7 +245,7 @@
                           t))))
       (flush))))
 
-(defn- move-job-up
+(defn ^:private move-job-up
   [jobs job-id new-line]
   (let [current-line (get-in jobs [job-id ::line])]
     (cond
@@ -286,7 +285,7 @@
                     job))
                 jobs))))
 
-(defn- find-min-line
+(defn ^:private find-min-line
   [jobs pred]
   (let [matching-lines (->> jobs
                             vals
@@ -295,7 +294,7 @@
     (when (seq matching-lines)
       (reduce min matching-lines))))
 
-(defn- complete-job
+(defn ^:private complete-job
   "When a job completes (because the channel closed), we set its :complete flag and
   its :active flag.  We re-order it up the list, so that it is directly above
   any non-completed jobs.  Once the :active flag is cleared, the line will itself
@@ -314,7 +313,7 @@
 
 (def ^:private output-keys [::summary ::status ::progress ::progress-formatter ::prefix])
 
-(defn- adjust-if-pinned
+(defn ^:private adjust-if-pinned
   "Adjust the just-updated job to line 1 if necessary."
   [jobs job-pre job-id]
   (let [{:keys [::pinned ::line ::active] :as job-post} (get jobs job-id)]
@@ -334,7 +333,7 @@
             (assoc % job-id (assoc job-post ::line 1)))
       jobs)))
 
-(defn- update-jobs-status
+(defn ^:private update-jobs-status
   [jobs job-id value]
   ;; A nil indicates that the channel closed, so complete the job.
   (try
@@ -355,7 +354,7 @@
                        ::update-value value}
                       t)))))
 
-(defn- start-refresh-process
+(defn ^:private start-refresh-process
   "A process that is periodically conveyed new jobs and figures out how to update the
   display to match.
 
@@ -375,7 +374,7 @@
           (recur new-jobs'))))
     out-ch))
 
-(defn- apply-dim
+(defn ^:private apply-dim
   [dim-after-millis job]
   (if (and (::active job)
            (< (+ (::updated job) dim-after-millis)
@@ -383,7 +382,7 @@
     (assoc job ::active false)
     job))
 
-(defn- next-timeout
+(defn ^:private next-timeout
   "Create the next timeout after a refresh. This is nil when there are no
   active jobs (because the interval timeout is also used to mark active jobs
   inactive after a delay)."
@@ -393,7 +392,7 @@
              (some ::active))
     (timeout update-millis)))
 
-(defn- start-process
+(defn ^:private start-process
   [new-jobs-ch shutdown-ch configuration]
   ;; jobs is keyed on job channel, value is the data about that job
   (let [{:keys [update-millis dim-after-millis out]} configuration
@@ -526,7 +525,7 @@
        (add-job [_ options]
          (add-job-to-board board-ch options))))))
 
-(defn- job-updater
+(defn ^:private job-updater
   [f]
   (reify JobUpdater
     (update-job [_ job]
