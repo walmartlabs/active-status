@@ -1,11 +1,13 @@
 (ns demo
   (:use clojure.repl)
-  (:require [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!! chan]]
-            [com.walmartlabs.active-status.minimal-board :refer [minimal-status-board]]
-            [com.walmartlabs.active-status :refer :all :as as]
-            [com.walmartlabs.active-status.workers :as w]
-            [com.walmartlabs.active-status.progress :refer [elapsed-time-job report-progress]]
-            [clojure.core.async :as async])
+  (:require
+    [clojure.core.async :refer [close! go go-loop timeout <! >! >!! <!! chan]]
+    [com.walmartlabs.active-status.minimal-board :refer [minimal-status-board]]
+    [com.walmartlabs.active-status :refer :all :as as]
+    [com.walmartlabs.active-status.output :refer [with-output-redirected]]
+    [com.walmartlabs.active-status.workers :as w]
+    [com.walmartlabs.active-status.progress :refer [elapsed-time-job report-progress]]
+    [clojure.core.async :as async])
   (:import [java.util UUID]))
 
 (defn- job

@@ -2,6 +2,10 @@
 
 Switched to the combo of Clojure 1.8 and clojure.future.spec.
 
+active-status can now be used inside a the Lumo ClojureScript REPL.
+This required some incompatible changes, mostly moving the macro
+`with-output-redirected` to new namespace `com.walmartlabs.active-status.output`.
+
 ## 0.1.15 - 2 Dec 2016
 
 Added some common utilities for reporting progress of long running
