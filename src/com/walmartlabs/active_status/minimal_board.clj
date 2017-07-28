@@ -2,10 +2,12 @@
   "Simplified status board, used for testing in the Cursive REPL, which is unable to handle the
 complicated terminal capabilities based cursor motion of the full console status board."
   {:added "0.1.4"}
-  (:require [clojure.core.async :refer [chan go go-loop <! >! pipe close!]]
-            [com.walmartlabs.active-status :as as]
-            [com.walmartlabs.active-status.internal :refer [add-job-to-board channel-for-job]])
-  (:import (com.walmartlabs.active_status SetPrefix)))
+  (:require
+    [clojure.core.async :refer [chan go go-loop <! >! pipe close!]]
+    [com.walmartlabs.active-status :as as]
+    [com.walmartlabs.active-status.internal :refer [add-job-to-board channel-for-job]])
+  (:import
+    (com.walmartlabs.active_status SetPrefix)))
 
 (defn- print-loop
   "Runs a loop that consumes [prefix summary] pairs and prints them."

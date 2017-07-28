@@ -1,13 +1,17 @@
 (ns com.walmartlabs.active-status
   "Present asynchronous status of multiple concurrent jobs within a command-line application."
-  (:require [clojure.core.async :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout <!!]]
-            [clojure.java.shell :refer [sh]]
-            [clojure.string :as str]
-            [io.aviso.ansi :as ansi]
-            [clojure.java.io :as io]
-            [com.walmartlabs.active-status.internal :refer [map-vals remove-vals add-job-to-board channel-for-job]])
-  (:import (java.util.concurrent.atomic AtomicInteger)
-           [java.io PrintStream]))
+  (:require
+    [clojure.core.async
+     :refer [chan close! sliding-buffer go-loop put! alt! pipeline go <! >! timeout <!!]]
+    [clojure.java.shell :refer [sh]]
+    [clojure.string :as str]
+    [io.aviso.ansi :as ansi]
+    [clojure.java.io :as io]
+    [com.walmartlabs.active-status.internal
+     :refer [map-vals remove-vals add-job-to-board channel-for-job]])
+  (:import
+    (java.util.concurrent.atomic AtomicInteger)
+    [java.io PrintStream]))
 
 (defn ^:private millis [] (System/currentTimeMillis))
 
@@ -212,7 +216,7 @@
             :when (not= job (get old-jobs job-id))
             :let [{:keys [::line ::prefix ::summary ::active ::complete ::status ::progress
                           ::progress-formatter]
-                   :or {progress-formatter default-progress-formatter}} job]]
+                   :or {::progress-formatter default-progress-formatter}} job]]
       (try
         (print (str (tput "civis")                          ; make cursor invisible
                     (tput "sc")                             ; save cursor position
@@ -241,7 +245,8 @@
           (throw (ex-info "Exception updating console status board."
                           {::old-jobs old-jobs
                            ::new-jobs new-jobs
-                           ::job job}
+                           ::job job
+                           :default-progress-reporter default-progress-formatter}
                           t))))
       (flush))))
 

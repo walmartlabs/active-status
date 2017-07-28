@@ -1,13 +1,15 @@
 (ns com.walmartlabs.active-status.component
   "A component for managing a status board."
   {:added "0.1.4"}
-  (:require [com.walmartlabs.active-status :as as]
-            [io.aviso.config :as config]
-            [com.stuartsierra.component :as component]
-            [com.walmartlabs.active-status.minimal-board :as minimal]
-            [com.walmartlabs.active-status.progress :refer [elapsed-time-job]]
-            [clojure.core.async :refer [close!]]
-            [clojure.spec :as s]))
+  (:require
+    [com.walmartlabs.active-status :as as]
+    [io.aviso.config :as config]
+    [com.stuartsierra.component :as component]
+    [com.walmartlabs.active-status.minimal-board :as minimal]
+    [com.walmartlabs.active-status.progress :refer [elapsed-time-job]]
+    [clojure.core.async :refer [close!]]
+    [clojure.spec.alpha :as s]
+    [clojure.future :refer [int?]]))
 
 (s/def ::mode #{:console :minimal})
 (s/def ::status-board-config (s/keys :req-un [::mode]))

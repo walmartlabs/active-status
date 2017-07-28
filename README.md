@@ -25,15 +25,15 @@ Here's a more realistic example, from [db-migrate-example](https://github.com/hl
 
 ```clojure
 (require '[com.walmartlabs.active-status :as as]
-         '[clojure.core.async :refer [close! >!!]])
+         '[clojure.core.async :refer [close! put!]])
 
 (defn process-files [board-ch files]
   (let [job-ch (as/add-job board-ch)]
-      (>!! job-ch (as/start-progress (count files)))
+      (put! job-ch (as/start-progress (count files)))
       (doseq [f files]
-        (>!! job-ch (str "Processing: " f))
+        (put! job-ch (str "Processing: " f))
         (process-single-file f)
-        (>!! job-ch (as/progress-tick)))
+        (put! job-ch (as/progress-tick)))
       (close! job-ch)))
       
  (def board-ch (as/console-status-board))

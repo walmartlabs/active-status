@@ -1,7 +1,7 @@
-(ns com.walmartlabs.active-status.internal
-  "Internal utilities, not for reuse. Subject to change withnout notice."
-  {:no-doc true}
-  (:require [clojure.core.async :refer [put! chan]]))
+(ns ^:no-doc com.walmartlabs.active-status.internal
+  "Internal utilities, not for reuse. Subject to change with out notice."
+  (:require
+    [clojure.core.async :refer [put! chan]]))
 
 (defn map-vals
   [f coll]

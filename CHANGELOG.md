@@ -1,3 +1,7 @@
+## 0.1.16 - UNRELEASED
+
+Switched to the combo of Clojure 1.8 and clojure.future.spec.
+
 ## 0.1.15 - 2 Dec 2016
 
 Added some common utilities for reporting progress of long running
