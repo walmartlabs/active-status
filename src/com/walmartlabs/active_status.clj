@@ -10,7 +10,6 @@
     [com.walmartlabs.active-status.internal
      :refer [map-vals remove-vals add-job-to-board channel-for-job]])
   (:import
-    (java.util.concurrent.atomic AtomicInteger)
     [java.io PrintStream]))
 
 (defn ^:private millis [] (System/currentTimeMillis))
@@ -404,7 +403,7 @@
         composite-ch (chan 10)
         forever-timeout-ch (chan)
         refresh-ch (chan)
-        key-source (AtomicInteger.)
+        key-source (atom 0)
         refreshed-jobs-ch (start-refresh-process configuration refresh-ch)]
     (go-loop [jobs {}
               interval-ch nil]
@@ -412,7 +411,7 @@
         new-jobs-ch
         ([v]
           (if (some? v)
-            (recur (setup-new-job out jobs composite-ch v (.incrementAndGet key-source))
+            (recur (setup-new-job out jobs composite-ch v (swap! key-source inc))
                    ;; There's no need to update now (if there wasn't already)
                    ;; because new jobs are always just a blank line (until the first update),
                    ;; which has already been printed.
@@ -622,7 +621,7 @@
                 err (io/writer err-stream)
                 sys-err (PrintStream. err-stream)]
       (try
-        ;; This seems redundant and unecessary, but is actually important.
+        ;; This seems redundant and unnecessary, but is actually important.
         ;; The most common case for using *err* is a Thread uncaughtExceptionHandler;
         ;; that happens so far outside of the Clojure stack that per-thread bindings
         ;; no longer apply. This forces Clojure (but not Java!) code that executes
