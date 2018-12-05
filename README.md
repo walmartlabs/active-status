@@ -19,7 +19,7 @@ Here's a more realistic example, from [db-migrate-example](https://github.com/hl
 
 ### API Documentation
 
-[API Documentation](http://walmartlabs.github.io/active-status/)
+[API Documentation](http://walmartlabs.github.io/apidocs/active-status/)
 
 ### Example Code
 
@@ -103,7 +103,7 @@ within a overall component system, which uses configuration to decide whether
 to instantiate the console status board, or the minimal status board.
  
 See [com.stuartsierra/component](https://github.com/stuartsierra/component) 
-and [io.aviso/config](https://github.com/AvisoNovate/config).
+and [Schematic](https://github.com/walmartlabs/schematic).
 
 ### Execution
 
